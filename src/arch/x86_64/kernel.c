@@ -4,8 +4,12 @@
 void kmain() {
     VGA_clear();
 
-    printk("%X %s %d\n", 0xacab, "fuck", 12);
-    printk("What the f*** is going on\n");
+    int d = -54321;
+
+    printk("d = %d, &d = %p\n", d, (void *)&d);
+    printk("Putting a %s in the middle.\n", "string");
+    printk("0x%X 0x%x\n", 0xDEAD, 0xBEEF);
+    printk("Unsigned %u\n", -12);
 
     while (1) {
         asm("hlt");
