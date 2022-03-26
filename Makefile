@@ -91,4 +91,4 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 # compile c files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(cc) -c -g $< -o $@
+	@$(cc) -ffreestanding -c -g $< -o $@
