@@ -1,28 +1,27 @@
-#include "stdio.h"
+#include "printk.h"
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include "vga.h"
 #include "string.h"
 
-#define PRINTF_BUFF 256
+#define FORMAT_BUFF 20
 
 // Converts a number to a string, places result in buffer
 // Returns number of written digits including -
-int itoa(int32_t num, char *buffer, int base, bool caps) {
-    int i = 0, n = 0, rem;
+void itoa(int num, char *buffer, int base) {
+    int i = 0, rem;
     bool negative = false;
 
     if (buffer == NULL) {
-        return 0;
+        return;
     }
 
     // Handle 0
     if (num == 0) {
         buffer[i++] = '0';
         buffer[i] = '\0';
-        return 1;
+        return;
     }
 
     // Only treat base 10 numbers as signed
@@ -34,16 +33,13 @@ int itoa(int32_t num, char *buffer, int base, bool caps) {
     // Convert number to string
     while (num > 0) {
         rem = num % base;
-        buffer[i++] = (rem < 10) ? rem + '0' : 
-            ((caps) ? (rem - 10) + 'A' : (rem - 10) + 'a');
+        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + 'a';
         num /= base;
-        n++;
     }
 
     // Append '-'
     if (negative) {
         buffer[i++] = '-';
-        n++;
     }
 
     // Null terminate
@@ -51,31 +47,28 @@ int itoa(int32_t num, char *buffer, int base, bool caps) {
 
     // Reverse string
     strrev(buffer);
-
-    return n;
 }
 
-// Converts a number to a string, places result in buffer
+// Converts a base 10 unsigned number to a string, places result in buffer
 // Returns number of written digits including -
-int uitoa(uint32_t num, char *buffer) {
-    int i = 0, n = 0;
+void uitoa(unsigned int num, char *buffer) {
+    int i = 0;
 
     if (buffer == NULL) {
-        return 0;
+        return;
     }
 
     // Handle 0
     if (num == 0) {
         buffer[i++] = '0';
         buffer[i] = '\0';
-        return 1;
+        return;
     }
 
     // Convert number to string
     while (num > 0) {
         buffer[i++] = (num % 10) + '0';
         num /= 10;
-        n++;
     }
 
     // Null terminate
@@ -83,74 +76,117 @@ int uitoa(uint32_t num, char *buffer) {
 
     // Reverse string
     strrev(buffer);
-
-    return n;
 }
 
+void print_uchar(unsigned char u) {
+    VGA_display_char(u);
+}
+
+void print_char(char c) {
+    VGA_display_char(c);
+}
+
+void print_str(const char *s) {
+    VGA_display_str(s);
+}
+
+void print_strn(const char *s, int n) {
+    char buffer[n];
+    strncpy(buffer, s, n);
+    VGA_display_str(buffer);
+}
+
+void print_int(int i) {
+    char buffer[FORMAT_BUFF];
+    itoa(i, buffer, 10);
+    VGA_display_str(buffer);
+}
+
+void print_uint(unsigned int u) {
+    char buffer[FORMAT_BUFF];
+    uitoa(u, buffer);
+    VGA_display_str(buffer);
+}
+
+void print_hex(int h) {
+    char buffer[FORMAT_BUFF];
+    itoa(h, buffer, 16);
+    VGA_display_str(buffer);
+}
+
+void print_pointer(int p) {
+    char buffer[FORMAT_BUFF];
+    buffer[0] = '0';
+    buffer[1] = 'x';
+    itoa(p, buffer + 2, 16);
+    VGA_display_str(buffer);
+}
+
+// Like printf, but in the kernel
 int printk(const char *fmt, ...) {
     va_list valist;
-    int i = 0, len = strlen(fmt);
-    char buff[PRINTF_BUFF];
-    char *strarg, *bp = buff;
+    int len, i = 0, j = 0;
+    bool split = false, format = false;
 
     if (fmt == NULL) return -1;
-
+    len = strlen(fmt);
     va_start(valist, fmt);
 
-    while (fmt[i] != '\0') {
-        if (fmt[i] == '%' && i < len - 1) {
-            // Check specifier
-            switch (fmt[i+1]) { 
+    do {
+        // Determine action on this iteration
+        if (fmt[j] == '%' && j < len - 1) {
+            format = true;
+            split = true;
+        } else if (fmt[j] == '\0') {
+            split = true;
+        }
+
+        if (split) {
+            // Print fmt[i:j]
+            print_strn(fmt + i, j - i);
+            i = j;
+        }
+
+        if (format) {
+            // Print arg with specified formatting
+            switch (fmt[j + 1]) {
                 case '%': // Percent
-                    *bp++ = '%';
-                    i++;
+                    print_char('%');
                     break;
                 case 'd': // Signed integer
-                    bp += itoa(va_arg(valist, int32_t), bp, 10, false);
-                    i++;
+                    print_int(va_arg(valist, int));
                     break;
                 case 'u': // Unsigned integer
-                    bp += uitoa(va_arg(valist, uint32_t), bp);
-                    i++;
+                    print_uint(va_arg(valist, unsigned int));
                     break;
-                case 'x': // hex
-                    bp += itoa(va_arg(valist, uint32_t), bp, 16, false);
-                    i++;
-                    break;
-                case 'X': // HEX
-                    bp += itoa(va_arg(valist, uint32_t), bp, 16, true);
-                    i++;
+                case 'x': // Lowercase hex
+                    print_hex(va_arg(valist, int));
                     break;
                 case 'c': // char
-                    *bp++ = va_arg(valist, int);
-                    i++;
+                    print_char((char)va_arg(valist, int));
                     break;
                 case 'p': // Pointer address
-                    strcpy(bp, "0x");
-                    bp += 2;
-                    bp += itoa((int32_t)va_arg(valist, void *), bp, 16, false);
-                    i++;
+                    print_pointer(va_arg(valist, int));
                     break;
-                case 'h':
-                case 'l':
-                case 'q':
+                case 'h': // h[dux], short length specifier
+                    break;
+                case 'l': // l[dux], long length specifier
+                    break;
+                case 'q': // q[dux], ???
+                    break;
                 case 's':
-                    strarg = va_arg(valist, char *);
-                    strcpy(bp, strarg);
-                    bp += strlen(strarg);
-                    i++;
+                    print_str(va_arg(valist, char *));
                     break;
                 default: // Invalid specifier
                     return -1;
             }
-        } else {
-            *bp++ = fmt[i];
+            // Move iterators past index character
+            i++;
+            j++;
         }
-        i++;
-    }
-    
-    va_end(valist);
-    *bp = '\0';
+        format = false;
+        split = false;
+    } while (fmt[j++]);
 
-    VGA_display_str(buff);
+    va_end(valist);
 }
