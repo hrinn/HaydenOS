@@ -31,7 +31,7 @@ clean_img:
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
 
-run: run_img
+run: run_iso
 
 run_img: $(img)
 	@qemu-system-x86_64 -drive format=raw,file=$(img)
@@ -44,7 +44,7 @@ img: $(img)
 iso: $(iso)
 
 $(img): $(kernel) $(grub_cfg)
-# Make an empty 64 MiB disk image with 1K sectors
+# Make an empty 64 MiB disk image
 	@dd if=/dev/zero of=$(img) bs=512 count=131072
 # Create a DOS partition table, with a bootable 32MB FAT32 partition
 	@sudo parted $(img) mklabel msdos

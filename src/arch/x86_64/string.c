@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include "string.h"
 
 void *memset(void *dst, int c, size_t n) {
     int i;
@@ -89,4 +89,16 @@ const char *strchr(const char *s, int c) {
 /* Not implemented, no malloc on system */
 char *strdup(const char *s) {
     return NULL;
+}
+
+// Reverses a string in place
+void strrev(char *str) {
+    int i = 0, j = strlen(str) - 1;
+    char t;
+
+    while (i < j) {
+        t = str[i];
+        str[i++] = str[j];
+        str[j--] = t;
+    }
 }

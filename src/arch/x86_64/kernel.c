@@ -1,10 +1,11 @@
-extern void VGA_clear();
-extern void VGA_display_str(const char *);
+#include "stdio.h"
+#include "vga.h"
 
 void kmain() {
     VGA_clear();
-    VGA_display_str("Welcome to HaydenOS\n");
-    VGA_display_str("Enjoy your stay!\n");
+
+    printk("%X %s %d\n", 0xacab, "fuck", 12);
+    printk("What the f*** is going on\n");
 
     while (1) {
         asm("hlt");
