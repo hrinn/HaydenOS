@@ -2,6 +2,7 @@ arch ?= x86_64
 
 ld := $(arch)-elf-ld
 cc := $(arch)-elf-gcc
+cflags := -ffreestanding -Wall -Wextra -g
 
 kernel := build/kernel-$(arch).bin
 img := build/os-$(arch).img
@@ -91,4 +92,4 @@ build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
 # compile c files
 build/arch/$(arch)/%.o: src/arch/$(arch)/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(cc) -ffreestanding -c -g $< -o $@
+	@$(cc) $(cflags) -c $< -o $@

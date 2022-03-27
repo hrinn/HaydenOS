@@ -9,9 +9,10 @@
 
 // Converts a number to a string, places result in buffer
 // Returns number of written digits including -
-void itoa(int num, char *buffer, int base) {
+void itoa(int num, char *buffer, int base, bool caps) {
     int i = 0, rem;
     bool negative = false;
+    char hexstart = (caps) ? 'A' : 'a';
 
     if (buffer == NULL) {
         return;
@@ -33,7 +34,7 @@ void itoa(int num, char *buffer, int base) {
     // Convert number to string
     while (num > 0) {
         rem = num % base;
-        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + 'a';
+        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + hexstart;
         num /= base;
     }
 
@@ -51,8 +52,9 @@ void itoa(int num, char *buffer, int base) {
 
 // Converts an unsigned number to a string, places result in buffer
 // Returns number of written digits including -
-void uitoa(unsigned int num, char *buffer, int base) {
+void uitoa(unsigned int num, char *buffer, int base, bool caps) {
     int i = 0, rem;
+    char hexstart = (caps) ? 'A' : 'a';
 
     if (buffer == NULL) {
         return;
@@ -68,7 +70,7 @@ void uitoa(unsigned int num, char *buffer, int base) {
     // Convert number to string
     while (num > 0) {
         rem = num % base;
-        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + 'a';
+        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + hexstart;
         num /= base;
     }
 
@@ -97,19 +99,19 @@ void print_strn(const char *s, int n) {
 
 void print_int(int i) {
     char buffer[FORMAT_BUFF];
-    itoa(i, buffer, 10);
+    itoa(i, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
 void print_uint(unsigned int u) {
     char buffer[FORMAT_BUFF];
-    uitoa(u, buffer, 10);
+    uitoa(u, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
-void print_hex(unsigned int h) {
+void print_hex(unsigned int h, bool caps) {
     char buffer[FORMAT_BUFF];
-    uitoa(h, buffer, 16);
+    uitoa(h, buffer, 16, caps);
     VGA_display_str(buffer);
 }
 
@@ -117,7 +119,7 @@ void print_pointer(unsigned int p) {
     char buffer[FORMAT_BUFF];
     buffer[0] = '0';
     buffer[1] = 'x';
-    uitoa(p, buffer + 2, 16);
+    uitoa(p, buffer + 2, 16, false);
     VGA_display_str(buffer);
 }
 
@@ -141,13 +143,10 @@ int printk(const char *fmt, ...) {
         }
 
         if (split) {
-            // Print fmt[i:j]
             print_strn(fmt + i, j - i);
-            i = j;
         }
 
         if (format) {
-            // Print arg with specified formatting
             switch (fmt[j + 1]) {
                 case '%': // Percent
                     print_char('%');
@@ -159,7 +158,10 @@ int printk(const char *fmt, ...) {
                     print_uint(va_arg(valist, unsigned int));
                     break;
                 case 'x': // Lowercase hex
-                    print_hex(va_arg(valist, unsigned int));
+                    print_hex(va_arg(valist, unsigned int), false);
+                    break;
+                case 'X': // Uppercase hex
+                    print_hex(va_arg(valist, unsigned int), true);
                     break;
                 case 'c': // char
                     print_char((char)va_arg(valist, int));
@@ -180,12 +182,13 @@ int printk(const char *fmt, ...) {
                     return -1;
             }
             // Move iterators past index character
-            i+=2;
-            j++;
+            i = ++j + 1;
         }
         format = false;
         split = false;
     } while (fmt[j++]);
 
     va_end(valist);
+
+    return 1;
 }

@@ -1,7 +1,7 @@
 #include "string.h"
 
 void *memset(void *dst, int c, size_t n) {
-    int i;
+    size_t i;
     char *s = (char *)dst;
     
     if (dst == NULL) return NULL;
@@ -14,7 +14,7 @@ void *memset(void *dst, int c, size_t n) {
 }
 
 void *memcpy(void *dest, const void *src, size_t n) {
-    int i;
+    size_t i;
 
     char *d = (char *)dest;
     char *s = (char *)src;
@@ -87,9 +87,9 @@ const char *strchr(const char *s, int c) {
 }
 
 /* Not implemented, no malloc on system */
-char *strdup(const char *s) {
-    return NULL;
-}
+// char *strdup(const char *s) {
+//     return NULL;
+// }
 
 // Reverses a string in place
 void strrev(char *str) {

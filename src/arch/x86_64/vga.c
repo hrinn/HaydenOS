@@ -18,8 +18,6 @@ void VGA_clear() {
 }
 
 void VGA_display_char(char c) {
-    uint16_t linepos;
-
     if (c == '\n') {
         cursor += VGA_WIDTH - (cursor % VGA_WIDTH);
     } else {
