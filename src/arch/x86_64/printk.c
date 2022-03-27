@@ -91,9 +91,7 @@ void print_str(const char *s) {
 }
 
 void print_strn(const char *s, int n) {
-    char buffer[n];
-    strncpy(buffer, s, n);
-    VGA_display_str(buffer);
+    VGA_display_strn(s, n);
 }
 
 void print_int(int i) {
@@ -181,12 +179,14 @@ int printk(const char *fmt, ...) {
                     return -1;
             }
             // Move iterators past index character
-            i++;
+            i+=2;
+            j+=2;
+        } else {
             j++;
         }
         format = false;
         split = false;
-    } while (fmt[j++]);
+    } while (fmt[j]);
 
     va_end(valist);
 }

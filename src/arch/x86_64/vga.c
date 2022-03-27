@@ -36,6 +36,15 @@ void VGA_display_str(const char *s) {
     }
 }
 
+void VGA_display_strn(const char *s, int n) {
+    int i;
+    if (s == NULL) return;
+
+    for (i = 0; s[i] && i < n; i++) {
+        VGA_display_char(s[i]);
+    }
+}
+
 void VGA_set_bg_color(char bg) {
     bg_color = bg;
 }

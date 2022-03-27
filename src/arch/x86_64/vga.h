@@ -4,6 +4,7 @@
 void VGA_clear();
 void VGA_display_char(char);
 void VGA_display_str(const char *);
+void VGA_display_strn(const char *s, int n);
 void VGA_set_bg_color(char);
 void VGA_set_fg_color(char);
 
