@@ -19,8 +19,8 @@ void itoa(int num, char *buffer, int base) {
 
     // Handle 0
     if (num == 0) {
-        buffer[i++] = '0';
-        buffer[i] = '\0';
+        buffer[i] = '0';
+        buffer[++i] = '\0';
         return;
     }
 
@@ -49,10 +49,10 @@ void itoa(int num, char *buffer, int base) {
     strrev(buffer);
 }
 
-// Converts a base 10 unsigned number to a string, places result in buffer
+// Converts an unsigned number to a string, places result in buffer
 // Returns number of written digits including -
-void uitoa(unsigned int num, char *buffer) {
-    int i = 0;
+void uitoa(unsigned int num, char *buffer, int base) {
+    int i = 0, rem;
 
     if (buffer == NULL) {
         return;
@@ -60,15 +60,16 @@ void uitoa(unsigned int num, char *buffer) {
 
     // Handle 0
     if (num == 0) {
-        buffer[i++] = '0';
-        buffer[i] = '\0';
+        buffer[i] = '0';
+        buffer[++i] = '\0';
         return;
     }
 
     // Convert number to string
     while (num > 0) {
-        buffer[i++] = (num % 10) + '0';
-        num /= 10;
+        rem = num % base;
+        buffer[i++] = (rem < 10) ? rem + '0' : (rem - 10) + 'a';
+        num /= base;
     }
 
     // Null terminate
@@ -102,21 +103,21 @@ void print_int(int i) {
 
 void print_uint(unsigned int u) {
     char buffer[FORMAT_BUFF];
-    uitoa(u, buffer);
+    uitoa(u, buffer, 10);
     VGA_display_str(buffer);
 }
 
-void print_hex(int h) {
+void print_hex(unsigned int h) {
     char buffer[FORMAT_BUFF];
-    itoa(h, buffer, 16);
+    uitoa(h, buffer, 16);
     VGA_display_str(buffer);
 }
 
-void print_pointer(int p) {
+void print_pointer(unsigned int p) {
     char buffer[FORMAT_BUFF];
     buffer[0] = '0';
     buffer[1] = 'x';
-    itoa(p, buffer + 2, 16);
+    uitoa(p, buffer + 2, 16);
     VGA_display_str(buffer);
 }
 
@@ -158,13 +159,13 @@ int printk(const char *fmt, ...) {
                     print_uint(va_arg(valist, unsigned int));
                     break;
                 case 'x': // Lowercase hex
-                    print_hex(va_arg(valist, int));
+                    print_hex(va_arg(valist, unsigned int));
                     break;
                 case 'c': // char
                     print_char((char)va_arg(valist, int));
                     break;
                 case 'p': // Pointer address
-                    print_pointer(va_arg(valist, int));
+                    print_pointer(va_arg(valist, unsigned int));
                     break;
                 case 'h': // h[dux], short length specifier
                     break;
@@ -180,13 +181,11 @@ int printk(const char *fmt, ...) {
             }
             // Move iterators past index character
             i+=2;
-            j+=2;
-        } else {
             j++;
         }
         format = false;
         split = false;
-    } while (fmt[j]);
+    } while (fmt[j++]);
 
     va_end(valist);
 }
