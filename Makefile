@@ -79,4 +79,4 @@ build/%.o: src/%.asm
 # compile c files
 build/%.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(CC) $(cflags) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
