@@ -5,13 +5,10 @@
 void kmain() {
     VGA_clear();
 
-    printk("Welcome to HaydenOS\n");
-
-    if (init_ps2_controller() != 1) {
-        printk("Error initializing ps2 controller");
-    } else {
-        printk("Initialized PS/2 controller");
-    }
+    printk("Welcome to ");
+    VGA_set_fg_color(LIGHT_GREEN);
+    printk("HaydenOS\n");
+    VGA_set_fg_color(WHITE);
 
     while (1) {
         asm("hlt");
