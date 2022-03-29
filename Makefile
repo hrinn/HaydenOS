@@ -1,24 +1,22 @@
-arch ?= x86_64
+LD := x86_64-elf-ld
+CC := x86_64-elf-gcc
+CFLAGS := -ffreestanding -Wall -Wextra -g
 
-ld := $(arch)-elf-ld
-cc := $(arch)-elf-gcc
-cflags := -ffreestanding -Wall -Wextra -g
-
-kernel := build/kernel-$(arch).bin
-img := build/os-$(arch).img
-iso := build/os-$(arch).iso
+kernel := build/img/boot/kernel.bin
+img := build/HaydenOS.img
+iso := build/HaydenOS.iso
 
 loop0 := /dev/loop13
 loop1 := /dev/loop14
 
-linker_script := src/arch/$(arch)/linker.ld
-grub_cfg := src/arch/$(arch)/grub.cfg
-assembly_source_files := $(wildcard src/arch/$(arch)/*.asm)
-assembly_object_files += $(patsubst src/arch/$(arch)/%.asm, \
-	build/arch/$(arch)/%.o, $(assembly_source_files))
-c_source_files := $(wildcard src/arch/$(arch)/*.c)
-c_object_files += $(patsubst src/arch/$(arch)/%.c, \
-	build/arch/$(arch)/%.o, $(c_source_files))
+linker_script := src/linker.ld
+grub_cfg := build/img/boot/grub/grub.cfg
+assembly_source_files := $(wildcard src/*.asm)
+assembly_object_files += $(patsubst src/%.asm, \
+	build/%.o, $(assembly_source_files))
+c_source_files := $(wildcard src/*.c)
+c_object_files += $(patsubst src/%.c, \
+	build/%.o, $(c_source_files))
 
 .PHONY: all clean run iso
 
@@ -28,7 +26,7 @@ clean:
 	@rm -r build
 
 clean_img:
-	@sudo umount build/img
+	@sudo umount build/mnt
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
 
@@ -52,34 +50,33 @@ $(img): $(kernel) $(grub_cfg)
 	@sudo losetup $(loop0) $(img)
 	@sudo losetup $(loop1) $(img) -o 1MiB
 	@sudo mkdosfs -F32 -f 2 $(loop1)
-	@mkdir build/img
-	@sudo mount $(loop1) build/img
-	@sudo grub-install --root-directory=build/img --no-floppy \
+	@mkdir build/mnt
+	@sudo mount $(loop1) build/mnt
+	@sudo grub-install --root-directory=build/mnt --no-floppy \
 	--modules="normal part_msdos ext2 multiboot" $(loop0)
-	@sudo mkdir -p build/img/boot/grub
-	@sudo cp $(kernel) build/img/boot/kernel.bin
-	@sudo cp $(grub_cfg) build/img/boot/grub
-	@sudo umount build/img
-	@rmdir build/img
+	@sudo cp -r build/img/* build/mnt
+	@sudo umount build/mnt
+	@rmdir build/mnt
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
 
 $(iso): $(kernel) $(grub_cfg)
-	@mkdir -p build/isofiles/boot/grub
-	@cp $(kernel) build/isofiles/boot/kernel.bin
-	@cp $(grub_cfg) build/isofiles/boot/grub
-	@grub-mkrescue -o $(iso) build/isofiles 2> /dev/null
-	@rm -r build/isofiles
+	@grub-mkrescue -o $(iso) build/img 2> /dev/null
 
 $(kernel): $(assembly_object_files) $(c_object_files) $(linker_script)
-	@$(ld) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
+	@mkdir -p build/img/boot
+	@$(LD) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
+
+$(grub_cfg): src/grub.cfg
+	@mkdir -p build/img/boot/grub
+	@cp src/grub.cfg $(grub_cfg)
 
 # compile assembly files
-build/arch/$(arch)/%.o: src/arch/$(arch)/%.asm
+build/%.o: src/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf64 $< -o $@
 
 # compile c files
-build/arch/$(arch)/%.o: src/arch/$(arch)/%.c
+build/%.o: src/%.c
 	@mkdir -p $(shell dirname $@)
-	@$(cc) $(cflags) -c $< -o $@
+	@$(CC) $(cflags) -c $< -o $@
