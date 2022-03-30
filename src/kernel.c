@@ -7,15 +7,28 @@ void print_welcome() {
     VGA_set_fg_color(LIGHT_GREEN);
     printk("HaydenOS\n");
     VGA_set_fg_color(WHITE);
-}   
+}
+
+void halt() {
+    while (1) {
+        asm("hlt");
+    }
+}
 
 void kmain() {
     VGA_clear();
 
     print_welcome();
-    init_ps2_controller();
-
-    while (1) {
-        asm("hlt");
+    
+    if (init_ps2_controller() != 1) {
+        printk("Failed to initialize PS/2 controller.\n");
+        halt();
     }
+
+    if (init_keyboard() != 1) {
+        printk("Failed to initialize keyboard.\n");
+        halt();
+    }
+    
+    halt();
 }
