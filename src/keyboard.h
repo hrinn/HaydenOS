@@ -3,5 +3,6 @@
 
 int init_ps2_controller(void);
 int init_keyboard(void);
+char poll_keyboard();
 
 #endif

@@ -6,7 +6,7 @@ kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loopn := $(shell losetup -a | wc -l) # Credit to Ryan Hunter
+loopn := $(shell losetup -a | wc -l)
 loop0 := /dev/loop$(loopn)
 loop1 := /dev/loop$(shell echo $(loopn)+1 | bc)
 
@@ -31,10 +31,13 @@ clean_img:
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
 
+debug: CFLAGS+=-DDEBUG
+debug: run
+
 run: run_iso
 
 run_img: $(img)
-	@qemu-system-x86_64 -drive format=raw,file=$(img)
+	@qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
 
 run_iso: $(iso)
 	@qemu-system-x86_64 -cdrom $(iso)

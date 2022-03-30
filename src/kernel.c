@@ -16,6 +16,7 @@ void halt() {
 }
 
 void kmain() {
+
     VGA_clear();
 
     print_welcome();
@@ -28,6 +29,11 @@ void kmain() {
     if (init_keyboard() != 1) {
         printk("Failed to initialize keyboard.\n");
         halt();
+    }
+
+    // Scan keycodes and print them
+    while (1) {
+        printk("0x%x", poll_keyboard());
     }
     
     halt();

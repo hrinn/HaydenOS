@@ -3,12 +3,10 @@
 
 #include "printk.h"
 
-#define DEBUG
-
 #ifdef DEBUG
-#define DEBUG_PRINT(x) printk x
+#define DEBUG_PRINT(...) printk (__VA_ARGS__)
 #else
-#define DEBUG_PRINT(x) do {} while (0);
+#define DEBUG_PRINT(...)
 #endif
 
 #endif
