@@ -1,13 +1,14 @@
 LD := x86_64-elf-ld
 CC := x86_64-elf-gcc
-CFLAGS := -ffreestanding -Wall -Wextra -g
+CFLAGS := -ffreestanding -Wall -Wextra -pedantic -g
 
 kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loop0 := /dev/loop13
-loop1 := /dev/loop14
+loopn := $(shell losetup -a | wc -l) # Credit to Ryan Hunter
+loop0 := /dev/loop$(loopn)
+loop1 := /dev/loop$(shell echo $(loopn)+1 | bc)
 
 linker_script := src/linker.ld
 grub_cfg := build/img/boot/grub/grub.cfg

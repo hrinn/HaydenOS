@@ -1,6 +1,11 @@
 #include "keyboard.h"
 #include <stdint.h>
 #include "printk.h"
+#include "ioport.h"
+
+#define PS2_STATUS 0x64
+#define PS2_COMMAND 0x64
+#define PS2_DATA 0x60
 
 // PS/2 Commands
 #define DISABLE_P1 0xAD
@@ -34,9 +39,18 @@ void write_command(uint8_t command) {
     *command_reg = command;
 }
 
+int init_ps2_controller() {
+    uint8_t data;
+
+    // Read status register
+    data = inb(PS2_STATUS);
+    printk("Read status register: %x\n", data);
+    return 1;
+}
+
 // Initializes the PS/2 Controller
 // Returns 1 on success, negative on failure
-int init_ps2_controller() {
+int init_ps2_controller2() {
     uint8_t data;
 
     // Disable ports
