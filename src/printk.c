@@ -81,19 +81,19 @@ void uitoa(unsigned int num, char *buffer, int base, bool caps) {
     strrev(buffer);
 }
 
-void print_uchar(unsigned char u) {
+static inline void print_uchar(unsigned char u) {
     VGA_display_char(u);
 }
 
-void print_char(char c) {
+static inline void print_char(char c) {
     VGA_display_char(c);
 }
 
-void print_str(const char *s) {
+static inline void print_str(const char *s) {
     VGA_display_str(s);
 }
 
-void print_strn(const char *s, int n) {
+static inline void print_strn(const char *s, int n) {
     VGA_display_strn(s, n);
 }
 

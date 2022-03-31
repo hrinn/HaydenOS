@@ -3,9 +3,9 @@ extern long_mode_start
 
 section .rodata
 gdt64:
-    dq 0    ; zero entry
-.code: equ $ - gdt64
-    dq (1<<43) | (1<<44) | (1<<47) | (1<<53)    ; code segment
+    dq 0    ; null descriptor
+.kernel_code: equ $ - gdt64
+    dq (1<<43) | (1<<44) | (1<<47) | (1<<53)    ; kernel mode code segment
 .pointer:
     dw $ - gdt64 - 1
     dq gdt64
@@ -24,7 +24,7 @@ start:
 
     ; load the 64-bit GDT
     lgdt [gdt64.pointer]
-    jmp gdt64.code:long_mode_start
+    jmp gdt64.kernel_code:long_mode_start
 
     ; print 'OK' to screen
     mov dword [0xb8000], 0x2f4b2f4f

@@ -32,7 +32,7 @@ void *memcpy(void *dest, const void *src, size_t n) {
 size_t strlen(const char *s) {
     size_t len = 0;
     if (s == NULL) return 0;
-    while (s[len]) len++;
+    while (s[len++]);
     return len;
 }
 
@@ -43,8 +43,7 @@ char *strcpy(char *dest, const char *src) {
 
     do {
         dest[i] = src[i];
-        i++;
-    } while (src[i] != '\0');
+    } while (src[i++] != '\0');
 
     return dest;
 }
