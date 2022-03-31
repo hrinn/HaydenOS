@@ -11,7 +11,7 @@ static inline uint8_t inb(uint16_t port) {
     return ret;
 }
 
-static inline void outb(uint8_t byte, uint16_t port) {
+static inline void outb(uint16_t port, uint8_t byte) {
     asm volatile ("outb %0, %1"
                     : /* No output registers */
                     : "a"(byte) , "Nd"(port));

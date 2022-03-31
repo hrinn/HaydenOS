@@ -6,12 +6,12 @@
 #define VGA_ADDR 0xb8000
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
-#define TABWIDTH 4
+#define TAB_WIDTH 4
 
 static uint16_t cursor;
 static uint16_t *vga = (uint16_t *)VGA_ADDR;
-static uint8_t fg_color = WHITE;
-static uint8_t bg_color = BLACK;
+static uint8_t fg_color = VGA_WHITE;
+static uint8_t bg_color = VGA_BLACK;
 
 void VGA_clear() {
     memset(vga, 0, VGA_WIDTH * VGA_HEIGHT * 2);
@@ -30,7 +30,7 @@ void VGA_display_char(char c) {
             vga[--cursor] = (bg_color << 12) | (fg_color << 8);
             break;
         case '\t':
-            for(int _; _ < TABWIDTH; _++) VGA_display_char(' ');
+            cursor += TAB_WIDTH;
             break;
         default:
             vga[cursor++] = (bg_color << 12) | (fg_color << 8) | c;

@@ -132,11 +132,11 @@ uint8_t read_data() {
 
 void write_data(uint8_t data) {
     while (inb(PS2_STATUS) & 0x2); // Waiting for empty input buffer
-    outb(data, PS2_DATA);
+    outb(PS2_DATA, data);
 }
 
 static inline void write_command(uint8_t command) {
-    outb(command, PS2_COMMAND);
+    outb(PS2_COMMAND, command);
 }
 
 // Initializes the PS/2 Controller

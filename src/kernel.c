@@ -4,9 +4,9 @@
 
 void print_welcome() {
     printk("Welcome to ");
-    VGA_set_fg_color(LIGHT_GREEN);
+    VGA_set_fg_color(VGA_LIGHT_GREEN);
     printk("HaydenOS\n");
-    VGA_set_fg_color(WHITE);
+    VGA_set_fg_color(VGA_WHITE);
 }
 
 void halt() {
@@ -31,7 +31,7 @@ void kmain() {
         halt();
     }
 
-    // Scan keycodes and print them
+    // Print user input
     while (1) {
         printk("%c", poll_keyboard());
     }
