@@ -33,7 +33,7 @@ void kmain() {
 
     // Scan keycodes and print them
     while (1) {
-        printk("0x%x", poll_keyboard());
+        printk("%c", poll_keyboard());
     }
     
     halt();
