@@ -1,11 +1,18 @@
 #include "printk.h"
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include "vga.h"
 #include "string.h"
 
 #define FORMAT_BUFF 20
+
+struct format_info {
+    uint8_t length;
+    char length_specifier;
+    char format_specifier;
+};
 
 // Converts a number to a string, places result in buffer
 // Returns number of written digits including -
@@ -123,6 +130,47 @@ void print_pointer(unsigned int p) {
     VGA_display_str(buffer);
 }
 
+// Takes a format string, pointing to the % character
+// Fills the format info struct
+// Returns true if it is a valid specifier, false if invalid
+bool check_format_spec(char *fmt, struct format_info *info, int rem_len) {
+
+    if (*fmt != '%') return false;
+
+    // Ensure there is enough remaining length
+
+    // Check the length specifier
+    switch (*(++fmt)) {
+        case 'h':
+        case 'l':
+        case 'q':
+            info->length_specifier = *fmt;
+            break;
+        default:
+            break;
+    }
+
+    // Check the format specifier
+    switch (*(++fmt)) {
+        case '%':
+        case 'd':
+        case 'u':
+        case 'x':
+        case 'X':
+        case 'c':
+        case 'p':
+        case 's':
+            info->format_specifier = *fmt;
+            break;
+        default:
+            return false;
+            break;
+    }
+
+    // Set length
+    return true;
+}
+
 // Like printf, but in the kernel
 int printk(const char *fmt, ...) {
     va_list valist;
@@ -135,6 +183,7 @@ int printk(const char *fmt, ...) {
 
     do {
         // Determine action on this iteration
+        // Check length and validity of format specifier
         if (fmt[j] == '%' && j < len - 1) {
             format = true;
             split = true;
