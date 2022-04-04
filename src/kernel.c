@@ -19,36 +19,24 @@ void kmain() {
 
     VGA_clear();
 
-    print_welcome();
-    
-    if (init_ps2_controller() != 1) {
-        printk("Failed to initialize PS/2 controller.\n");
-        halt();
-    }
+    printk("Int: %d\n", -1);
+    printk("Short int: %hd\n", (short int)-1);
+    printk("Long int: %ld\n", (long int)-1);
+    printk("Quad int: %qd\n", (long long int)-1);
+    printk("Unsigned int %u\n", -1);
+    printk("Unsigned short int: %hu\n", (unsigned short int)-1);
+    printk("Unsigned long int: %lu\n", (unsigned long int)-1);
+    printk("Unsigned quad int: %qu\n", (unsigned long long int)-1);
+    printk("Hex: %x\n", -1);
+    printk("Short hex: %hx\n", (unsigned short int)-1);
+    printk("Long hex: %lx\n", (unsigned long int)-1);
+    printk("Quad hex: %qx\n", (unsigned long long int)-1);
 
-    if (init_keyboard() != 1) {
-        printk("Failed to initialize keyboard.\n");
-        halt();
-    }
-
-    int i = 54321;
-
-    // printk("short int: %hd test\n", (short int)i);
-    // printk("long int: %ld\n", (long int)i);
-    // printk("long long int: %qd\n", (long long int)i);
-    printk("int: %d test\n", i);
-    printk("hex: %x\n", i);
+    int p = 0;
+    printk("Pointer: %p\n", (void *)&p);
+    printk("Char: %c\n", 'c');
+    printk("String: %s\n", "a string");
     printk("100%%\n");
-    printk("char: %c\n", 'c');
-    printk("pointer: %p\n", (void *)&i);
-    printk("string: %s\n", "test");
-
-    // Test printd
-
-    // Print user input
-    // while (1) {
-    //     printk("%c", poll_keyboard());
-    // }
     
     halt();
 }

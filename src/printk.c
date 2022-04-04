@@ -123,7 +123,7 @@ static void print_hex(uint64_t h, bool caps) {
 }
 
 
-static void print_pointer(unsigned int p) {
+static void print_pointer(uint64_t p) {
     char buffer[FORMAT_BUFF];
     buffer[0] = '0';
     buffer[1] = 'x';
@@ -184,55 +184,59 @@ static bool check_format_spec(const char *fmt, struct format_info *info) {
 // Like printf, but in the kernel
 int printk(const char *fmt, ...) {
     va_list valist;
-    int i = 0, j = 0;
-    bool split, format;
+    int i = 0;
     struct format_info info;
 
     if (fmt == NULL) return -1;
     va_start(valist, fmt);
 
-    do {
+    while (fmt[i]) {
         info.length = 0;
         info.format_specifier = '\0';
         info.length_specifier = '\0';
-        split = false;
-        format = false;
 
-        // Determine action on this iteration
-        // Check length and validity of format specifier
-        if (fmt[j] == '\0') {
-            split = true;
-        } else if (check_format_spec(fmt + j, &info)) {
-            split = true;
-            format = true;
-        }
-
-        if (split) {
-            print_strn(fmt + i, j - i);
-        }
-
-        if (format) {
+        if (check_format_spec(fmt + i, &info)) {
             switch (info.format_specifier) {
                 case '%': // Percent
                     print_char('%');
                     break;
                 case 'd': // Signed integer
-                    print_int(va_arg(valist, int64_t));
+                    switch (info.length_specifier) {
+                        case 'h': print_int((int16_t)va_arg(valist, int32_t));          break;
+                        case 'l': print_int(va_arg(valist, int32_t));                   break;
+                        case 'q': print_int(va_arg(valist, int64_t));                   break;
+                        case '\0': print_int(va_arg(valist, int32_t));                  break;
+                    }     
                     break;
                 case 'u': // Unsigned integer
-                    print_uint(va_arg(valist, uint64_t));
+                    switch (info.length_specifier) {
+                        case 'h': print_uint((uint16_t)va_arg(valist, uint32_t));       break;
+                        case 'l': print_uint(va_arg(valist, uint32_t));                 break;
+                        case 'q': print_uint(va_arg(valist, uint64_t));                 break;
+                        case '\0': print_uint(va_arg(valist, uint32_t));                break;
+                    }
                     break;
                 case 'x': // Lowercase hex
-                    print_hex(va_arg(valist, uint64_t), false);
+                    switch (info.length_specifier) {
+                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), false); break;
+                        case 'l': print_hex(va_arg(valist, uint32_t), false);           break;
+                        case 'q': print_hex(va_arg(valist, uint64_t), false);           break;
+                        case '\0': print_hex(va_arg(valist, uint32_t), false);          break;
+                    }
                     break;
                 case 'X': // Uppercase hex
-                    print_hex(va_arg(valist, uint64_t), true);
+                    switch (info.length_specifier) {
+                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), true);  break;
+                        case 'l': print_hex(va_arg(valist, uint32_t), true);            break;
+                        case 'q': print_hex(va_arg(valist, uint64_t), true);            break;
+                        case '\0': print_hex(va_arg(valist, uint32_t), true);           break;
+                    }
                     break;
                 case 'c': // Char
                     print_char((char)va_arg(valist, int));
                     break;
                 case 'p': // Pointer address
-                    print_pointer(va_arg(valist, unsigned int));
+                    print_pointer(va_arg(valist, uint64_t));
                     break;
                 case 's': // String
                     print_str(va_arg(valist, char *));
@@ -240,11 +244,11 @@ int printk(const char *fmt, ...) {
                 default: // Invalid specifier
                     return -1;
             }
-            // Move iterators to next substring
-            j += info.length;
-            i = j--; // Decrement j because the while loop performs increment
+            i += info.length;
+        } else {
+            print_char(fmt[i++]);
         }
-    } while (fmt[j++]);
+    }
 
     va_end(valist);
 
