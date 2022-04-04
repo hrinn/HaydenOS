@@ -31,12 +31,19 @@ void kmain() {
         halt();
     }
 
-    int i = 64;
+    int i = 54321;
 
-    printk("int: %hd\n", (short int)i);
-    printk("int: %ld\n", (long int)i);
-    printk("int: %qd\n", (long long int)i);
-    printk("int: %d\n", i);
+    // printk("short int: %hd test\n", (short int)i);
+    // printk("long int: %ld\n", (long int)i);
+    // printk("long long int: %qd\n", (long long int)i);
+    printk("int: %d test\n", i);
+    printk("hex: %x\n", i);
+    printk("100%%\n");
+    printk("char: %c\n", 'c');
+    printk("pointer: %p\n", (void *)&i);
+    printk("string: %s\n", "test");
+
+    // Test printd
 
     // Print user input
     // while (1) {

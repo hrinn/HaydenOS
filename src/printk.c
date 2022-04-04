@@ -16,7 +16,7 @@ struct format_info {
 
 // Converts a number to a string, places result in buffer
 // Returns number of written digits including -
-void itoa(int64_t num, char *buffer, int base, bool caps) {
+static void itoa(int64_t num, char *buffer, int base, bool caps) {
     int i = 0, rem;
     bool negative = false;
     char hexstart = (caps) ? 'A' : 'a';
@@ -59,7 +59,7 @@ void itoa(int64_t num, char *buffer, int base, bool caps) {
 
 // Converts an unsigned number to a string, places result in buffer
 // Returns number of written digits including -
-void uitoa(uint64_t num, char *buffer, int base, bool caps) {
+static void uitoa(uint64_t num, char *buffer, int base, bool caps) {
     int i = 0, rem;
     char hexstart = (caps) ? 'A' : 'a';
 
@@ -104,26 +104,26 @@ static inline void print_strn(const char *s, int n) {
     VGA_display_strn(s, n);
 }
 
-void print_int(int64_t i) {
+static void print_int(int64_t i) {
     char buffer[FORMAT_BUFF];
     itoa(i, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
-void print_uint(uint64_t u) {
+static void print_uint(uint64_t u) {
     char buffer[FORMAT_BUFF];
     uitoa(u, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
-void print_hex(uint64_t h, bool caps) {
+static void print_hex(uint64_t h, bool caps) {
     char buffer[FORMAT_BUFF];
     uitoa(h, buffer, 16, caps);
     VGA_display_str(buffer);
 }
 
 
-void print_pointer(unsigned int p) {
+static void print_pointer(unsigned int p) {
     char buffer[FORMAT_BUFF];
     buffer[0] = '0';
     buffer[1] = 'x';
@@ -134,7 +134,7 @@ void print_pointer(unsigned int p) {
 // Takes a format string, pointing to the % character
 // Fills the format info struct
 // Returns true if it is a valid specifier, false if invalid
-bool check_format_spec(const char *fmt, struct format_info *info) {
+static bool check_format_spec(const char *fmt, struct format_info *info) {
     if (*fmt != '%') return false;
 
     // Check the length specifier
