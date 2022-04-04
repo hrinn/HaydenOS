@@ -31,10 +31,17 @@ void kmain() {
         halt();
     }
 
+    int i = 64;
+
+    printk("int: %hd\n", (short int)i);
+    printk("int: %ld\n", (long int)i);
+    printk("int: %qd\n", (long long int)i);
+    printk("int: %d\n", i);
+
     // Print user input
-    while (1) {
-        printk("%c", poll_keyboard());
-    }
+    // while (1) {
+    //     printk("%c", poll_keyboard());
+    // }
     
     halt();
 }

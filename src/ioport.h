@@ -39,8 +39,8 @@ static inline void outw(uint16_t port, uint16_t byte) {
                     : "a"(byte) , "Nd"(port));
 }
 
-static inline void outw(uint16_t port, uint32_t byte) {
-    asm volatile ("outw %0, %1"
+static inline void outl(uint16_t port, uint32_t byte) {
+    asm volatile ("outl %0, %1"
                     : /* No output registers */
                     : "a"(byte) , "Nd"(port));
 }

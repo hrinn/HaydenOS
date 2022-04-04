@@ -16,7 +16,7 @@ struct format_info {
 
 // Converts a number to a string, places result in buffer
 // Returns number of written digits including -
-void itoa(int num, char *buffer, int base, bool caps) {
+void itoa(int64_t num, char *buffer, int base, bool caps) {
     int i = 0, rem;
     bool negative = false;
     char hexstart = (caps) ? 'A' : 'a';
@@ -59,7 +59,7 @@ void itoa(int num, char *buffer, int base, bool caps) {
 
 // Converts an unsigned number to a string, places result in buffer
 // Returns number of written digits including -
-void uitoa(unsigned int num, char *buffer, int base, bool caps) {
+void uitoa(uint64_t num, char *buffer, int base, bool caps) {
     int i = 0, rem;
     char hexstart = (caps) ? 'A' : 'a';
 
@@ -104,23 +104,24 @@ static inline void print_strn(const char *s, int n) {
     VGA_display_strn(s, n);
 }
 
-void print_int(int i) {
+void print_int(int64_t i) {
     char buffer[FORMAT_BUFF];
     itoa(i, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
-void print_uint(unsigned int u) {
+void print_uint(uint64_t u) {
     char buffer[FORMAT_BUFF];
     uitoa(u, buffer, 10, false);
     VGA_display_str(buffer);
 }
 
-void print_hex(unsigned int h, bool caps) {
+void print_hex(uint64_t h, bool caps) {
     char buffer[FORMAT_BUFF];
     uitoa(h, buffer, 16, caps);
     VGA_display_str(buffer);
 }
+
 
 void print_pointer(unsigned int p) {
     char buffer[FORMAT_BUFF];
@@ -133,25 +134,37 @@ void print_pointer(unsigned int p) {
 // Takes a format string, pointing to the % character
 // Fills the format info struct
 // Returns true if it is a valid specifier, false if invalid
-bool check_format_spec(char *fmt, struct format_info *info, int rem_len) {
-
+bool check_format_spec(const char *fmt, struct format_info *info) {
     if (*fmt != '%') return false;
 
-    // Ensure there is enough remaining length
-
     // Check the length specifier
-    switch (*(++fmt)) {
+    switch (*(fmt + 1)) {
         case 'h':
         case 'l':
         case 'q':
-            info->length_specifier = *fmt;
+            info->length_specifier = *(++fmt);
             break;
         default:
             break;
     }
 
+    // Check the format specifier supports length specifiers
+    if (info->length_specifier) {
+        switch (*(fmt + 1)) {
+            case 'd':
+            case 'u':
+            case 'x':
+            case 'X':
+                info->length = 3;
+                info->format_specifier = *(fmt + 1);
+                return true;
+            default:
+                return false;
+        }
+    }
+
     // Check the format specifier
-    switch (*(++fmt)) {
+    switch (*(fmt + 1)) {
         case '%':
         case 'd':
         case 'u':
@@ -160,35 +173,38 @@ bool check_format_spec(char *fmt, struct format_info *info, int rem_len) {
         case 'c':
         case 'p':
         case 's':
-            info->format_specifier = *fmt;
-            break;
+            info->length = 2;
+            info->format_specifier = *(fmt + 1);
+            return true;
         default:
             return false;
-            break;
     }
-
-    // Set length
-    return true;
 }
 
 // Like printf, but in the kernel
 int printk(const char *fmt, ...) {
     va_list valist;
-    int len, i = 0, j = 0;
-    bool split = false, format = false;
+    int i = 0, j = 0;
+    bool split, format;
+    struct format_info info;
 
     if (fmt == NULL) return -1;
-    len = strlen(fmt);
     va_start(valist, fmt);
 
     do {
+        info.length = 0;
+        info.format_specifier = '\0';
+        info.length_specifier = '\0';
+        split = false;
+        format = false;
+
         // Determine action on this iteration
         // Check length and validity of format specifier
-        if (fmt[j] == '%' && j < len - 1) {
+        if (fmt[j] == '\0') {
+            split = true;
+        } else if (check_format_spec(fmt + j, &info)) {
+            split = true;
             format = true;
-            split = true;
-        } else if (fmt[j] == '\0') {
-            split = true;
         }
 
         if (split) {
@@ -196,45 +212,38 @@ int printk(const char *fmt, ...) {
         }
 
         if (format) {
-            switch (fmt[j + 1]) {
+            switch (info.format_specifier) {
                 case '%': // Percent
                     print_char('%');
                     break;
                 case 'd': // Signed integer
-                    print_int(va_arg(valist, int));
+                    print_int(va_arg(valist, int64_t));
                     break;
                 case 'u': // Unsigned integer
-                    print_uint(va_arg(valist, unsigned int));
+                    print_uint(va_arg(valist, uint64_t));
                     break;
                 case 'x': // Lowercase hex
-                    print_hex(va_arg(valist, unsigned int), false);
+                    print_hex(va_arg(valist, uint64_t), false);
                     break;
                 case 'X': // Uppercase hex
-                    print_hex(va_arg(valist, unsigned int), true);
+                    print_hex(va_arg(valist, uint64_t), true);
                     break;
-                case 'c': // char
+                case 'c': // Char
                     print_char((char)va_arg(valist, int));
                     break;
                 case 'p': // Pointer address
                     print_pointer(va_arg(valist, unsigned int));
                     break;
-                case 'h': // h[dux], short length specifier
-                    break;
-                case 'l': // l[dux], long length specifier
-                    break;
-                case 'q': // q[dux], ???
-                    break;
-                case 's':
+                case 's': // String
                     print_str(va_arg(valist, char *));
                     break;
                 default: // Invalid specifier
                     return -1;
             }
-            // Move iterators past index character
-            i = ++j + 1;
+            // Move iterators to next substring
+            j += info.length;
+            i = j--; // Decrement j because the while loop performs increment
         }
-        format = false;
-        split = false;
     } while (fmt[j++]);
 
     va_end(valist);
