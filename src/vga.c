@@ -7,6 +7,7 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define TAB_WIDTH 4
+#define LINE(x) x - (x % VGA_WIDTH)
 
 static uint16_t cursor;
 static uint16_t *vga = (uint16_t *)VGA_ADDR;
@@ -18,12 +19,16 @@ void VGA_clear() {
     cursor = 0;
 }
 
-void VGA_display_char(char c) {
-    if (cursor >= VGA_WIDTH * VGA_HEIGHT && c != '\b') cursor = 0;
+void scroll() {
+    memcpy(vga, vga + VGA_WIDTH, ((VGA_HEIGHT - 1) * VGA_WIDTH) * 2);
+    memset(vga + ((VGA_HEIGHT - 1) * VGA_WIDTH), 0, VGA_WIDTH * 2);
+    cursor = (VGA_HEIGHT - 1) * VGA_WIDTH;
+} 
 
+void VGA_display_char(char c) {
     switch (c) {
         case '\n':
-            cursor += VGA_WIDTH - (cursor % VGA_WIDTH);
+            cursor = LINE(cursor) + VGA_WIDTH;
             break;
         case '\b':
             if (cursor == 0) break;
@@ -34,6 +39,11 @@ void VGA_display_char(char c) {
             break;
         default:
             vga[cursor++] = (bg_color << 12) | (fg_color << 8) | c;
+    }
+
+
+    if (cursor >= VGA_WIDTH * VGA_HEIGHT) {
+        scroll();
     }
 }
 

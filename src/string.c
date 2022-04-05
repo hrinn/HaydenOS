@@ -1,8 +1,8 @@
 #include "string.h"
 
-void *memset(void *dst, int c, size_t n) {
+void *memset(void *dst, uint8_t c, size_t n) {
     size_t i;
-    char *s = (char *)dst;
+    uint8_t *s = (uint8_t *)dst;
     
     if (dst == NULL) return NULL;
 
@@ -16,8 +16,8 @@ void *memset(void *dst, int c, size_t n) {
 void *memcpy(void *dest, const void *src, size_t n) {
     size_t i;
 
-    char *d = (char *)dest;
-    char *s = (char *)src;
+    uint8_t *d = (uint8_t *)dest;
+    uint8_t *s = (uint8_t *)src;
 
     if (dest == NULL) return NULL;
     if (src == NULL) return dest;

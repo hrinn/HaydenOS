@@ -1,6 +1,9 @@
 #include "irq.h"
 #include "printk.h"
 
+#define INT __attribute__((interrupt))
+#define UNUSED __attribute__((unused))
+
 typedef struct {
     unsigned int ist : 3;   // Indexes the interrupt stack table
     unsigned int reserved : 5;
@@ -32,7 +35,7 @@ static idt_entry_t idt[256];
 // IDT Register
 static idtr_t idtr;
 
-__attribute__((interrupt))void breakpoint_handler(struct interrupt_frame *frame, unsigned long int error_code) {
+INT void breakpoint_handler(UNUSED struct interrupt_frame *frame, UNUSED unsigned long int error_code) {
     printk("breakpoint!\n");
 }
 
@@ -49,41 +52,40 @@ void IRQ_init() {
 }
 
 // Mask determines which interrupts are enabled
-void IRQ_set_mask(int irq) {
+// void IRQ_set_mask(int irq) {
 
-}
+// }
 
 
-void IRQ_clear_mask(int irq) {
+// void IRQ_clear_mask(int irq) {
 
-}
+// }
 
-int IRQ_get_mask(int IRQline) {
+// int IRQ_get_mask(int IRQline) {
 
-}
+// }
 
-void IRQ_end_of_interrupt(int irq) {
+// void IRQ_end_of_interrupt(int irq) {
 
-}
+// }
 
-void IRQ_set_handler(uint8_t irq, irq_handler_t handler, void *arg) {
-    idt_entry_t idt_entry = idt[irq];
+void IRQ_set_handler(uint8_t irq, irq_handler_t handler, UNUSED void *arg) {
 
     // Setup handler address
-    idt_entry.isr_low = (uint64_t)handler & 0xFFFF;
-    idt_entry.isr_mid = ((uint64_t)handler >> 16) & 0xFFFF;
-    idt_entry.isr_high = ((uint64_t)handler >> 32) & 0xFFFFFFFF;
+    idt[irq].isr_low = (uint64_t)handler & 0xFFFF;
+    idt[irq].isr_mid = ((uint64_t)handler >> 16) & 0xFFFF;
+    idt[irq].isr_high = ((uint64_t)handler >> 32) & 0xFFFFFFFF;
 
     // GDT selector
 
     // Options
-    idt_entry.options.ist = 0;
-    idt_entry.options.reserved = 0;
-    idt_entry.options.gate = 0; // Interrupt gate
-    idt_entry.options.one = 0x7;
-    idt_entry.options.zero = 0;
-    idt_entry.options.dpl = 1; // ???
-    idt_entry.options.present = 1;
+    idt[irq].options.ist = 0;
+    idt[irq].options.reserved = 0;
+    idt[irq].options.gate = 0; // Interrupt gate
+    idt[irq].options.one = 0x7;
+    idt[irq].options.zero = 0;
+    idt[irq].options.dpl = 1; // ???
+    idt[irq].options.present = 1;
 
-    idt_entry.reserved = 0;
+    idt[irq].reserved = 0;
 }

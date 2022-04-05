@@ -1,7 +1,8 @@
 #include "printk.h"
-// #include "keyboard.h"
+#include "keyboard.h"
 #include "vga.h"
-#include "irq.h"
+// #include "irq.h"
+#include "debug.h"
 
 void print_welcome() {
     printk("Welcome to ");
@@ -17,14 +18,15 @@ void halt() {
 }
 
 void kmain() {
+    GDB_PAUSE; // set gdbp=1
 
     VGA_clear();
+    init_ps2_controller();
+    init_keyboard();
 
-    IRQ_init();
-
-    // asm volatile ("int3");
-
-    printk("Return to kmain!\n");
+    while (1) {
+        printk("%c", poll_keyboard());
+    }
     
     halt();
 }
