@@ -37,7 +37,7 @@ debug: run
 gdb: CFLAGS+=-DGDB
 gdb: run
 
-run: run_img
+run: run_iso
 
 run_img: $(img)
 	@qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
