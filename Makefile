@@ -6,9 +6,8 @@ kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loopn := $(shell losetup -a | wc -l)
-loop0 := /dev/loop$(loopn)
-loop1 := /dev/loop$(shell echo $(loopn)+1 | bc)
+loop0 := /dev/loop30
+loop1 := /dev/loop31
 
 linker_script := src/linker.ld
 grub_cfg := build/img/boot/grub/grub.cfg
@@ -27,9 +26,10 @@ clean:
 	@rm -r build
 
 clean_img:
-	@sudo umount build/mnt
+	@sudo umount /mnt/fatgrub
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
+	@sudo rmdir /mnt/fatgrub
 
 debug: CFLAGS+=-DDEBUG
 debug: run
@@ -37,7 +37,7 @@ debug: run
 gdb: CFLAGS+=-DGDB
 gdb: run
 
-run: run_iso
+run: run_img
 
 run_img: $(img)
 	@qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
@@ -57,13 +57,13 @@ $(img): $(kernel) $(grub_cfg)
 	@sudo losetup $(loop0) $(img)
 	@sudo losetup $(loop1) $(img) -o 1MiB
 	@sudo mkdosfs -F32 -f 2 $(loop1)
-	@mkdir build/mnt
-	@sudo mount $(loop1) build/mnt
-	@sudo grub-install --root-directory=build/mnt --no-floppy \
+	@sudo mkdir /mnt/fatgrub
+	@sudo mount $(loop1) /mnt/fatgrub
+	sudo grub-install --target=i386-pc --root-directory=/mnt/fatgrub --no-floppy \
 	--modules="normal part_msdos ext2 multiboot" $(loop0)
-	@sudo cp -r build/img/* build/mnt
-	@sudo umount build/mnt
-	@rmdir build/mnt
+	@sudo cp -r build/img/* /mnt/fatgrub
+	@sudo umount /mnt/fatgrub
+	@sudo rmdir /mnt/fatgrub
 	@sudo losetup -d $(loop0)
 	@sudo losetup -d $(loop1)
 
