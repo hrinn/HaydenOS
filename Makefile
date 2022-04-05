@@ -18,7 +18,7 @@ c_source_files := $(wildcard src/*.c)
 c_object_files += $(patsubst src/%.c, \
 	build/%.o, $(c_source_files))
 
-.PHONY: all clean run iso
+.PHONY: all clean run iso img debug gdb run_img run_iso clean_img
 
 all: $(kernel)
 
