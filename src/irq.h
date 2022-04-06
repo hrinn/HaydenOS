@@ -3,8 +3,17 @@
 
 #include <stdint.h>
 
-struct interrupt_frame;
-typedef void (*irq_handler_t)(struct interrupt_frame, void *arg);
+struct interrupt_frame {
+    uint64_t stack_alignment;
+    uint64_t stack_segment;
+    uint64_t stack_pointer;
+    uint64_t rflags;
+    uint64_t code_segment;
+    uint64_t instruction_pointer;
+};
+
+typedef void (*irq_handler_t)(struct interrupt_frame *);
+typedef void (*irq_err_handler_t)(struct interrupt_frame *, long unsigned int);
 
 // ISR Numbers
 #define DIVIDE_BY_ZERO 0
@@ -26,6 +35,7 @@ typedef void (*irq_handler_t)(struct interrupt_frame, void *arg);
 #define MACHINE_CHECK 18
 #define SIMD_FLOATING_POINT 19
 #define VIRTUALIZATION 20
+#define CONTROL_PROTECTION 21
 #define SECURITY_EXCEPTION 30
 
 // IRQ Interface
@@ -34,7 +44,8 @@ void IRQ_set_mask(int irq);
 void IRQ_clear_mask(int irq);
 int IRQ_get_mask(int IRQline);
 void IRQ_end_of_interrupt(int irq);
-void IRQ_set_handler(uint8_t irq, irq_handler_t handler, void *arg);
+void IRQ_set_handler(uint8_t irq, irq_handler_t handler);
+void IRQ_set_err_handler(uint8_t irq, irq_err_handler_t handler);
 
 // Assembly helpers
 static inline void cli() {

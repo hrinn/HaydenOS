@@ -1,7 +1,7 @@
 #include "printk.h"
 #include "keyboard.h"
 #include "vga.h"
-// #include "irq.h"
+#include "irq.h"
 #include "debug.h"
 
 void print_welcome() {
@@ -21,6 +21,7 @@ void kmain() {
     GDB_PAUSE; // set gdbp=1
 
     VGA_clear();
+    IRQ_init();
     init_ps2_controller();
     init_keyboard();
 

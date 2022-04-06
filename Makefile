@@ -6,8 +6,9 @@ kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loop0 := /dev/loop30
-loop1 := /dev/loop31
+loopn := $(shell losetup -a | wc -l)
+loop0 := /dev/loop$(loopn)
+loop1 := /dev/loop$(shell echo $(loopn)+1 | bc)
 
 linker_script := src/linker.ld
 grub_cfg := build/img/boot/grub/grub.cfg

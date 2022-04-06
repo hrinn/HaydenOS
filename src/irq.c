@@ -1,91 +1,96 @@
 #include "irq.h"
 #include "printk.h"
 
-#define INT __attribute__((interrupt))
 #define UNUSED __attribute__((unused))
-
-typedef struct {
-    unsigned int ist : 3;   // Indexes the interrupt stack table
-    unsigned int reserved : 5;
-    unsigned int gate : 1;  // 0: interrupt gate, 1: trap gate
-    unsigned int one : 3;   
-    unsigned int zero : 1;
-    unsigned int dpl : 2;   // Descriptor privilege level: minimum privilege level required for calling this isr
-    unsigned int present : 1;
-} __attribute__((packed)) isr_options_t;
+#define FLAGS 0x8E // 1000 1110 
+#define NUM_ENTRIES 256
+#define NUM_HANDLERS 12
+#define NUM_ERR_HANDLERS 9
 
 typedef struct {
     uint16_t isr_low;       // Lower 16 bits of ISR's address
     uint16_t gdt_selector;  // Selects a code segment in the GDT
-    isr_options_t options;
+    uint8_t ist;            // IST in the TSS that the CPU will load into RSP
+    uint8_t attributes;     // Type and attributes
     uint16_t isr_mid;       // Middle 16 bits of ISR's address
     uint32_t isr_high;      // Upper 32 bits of ISR's address
     uint32_t reserved;
 } __attribute__((packed)) idt_entry_t;
 
 typedef struct {
-    uint16_t limit;
-    uint64_t base;
-} __attribute__((packed)) idtr_t;
+    uint16_t limit; // Size of IDT
+    uint64_t base;  // Address of IDT
+} __attribute__((packed)) idt_r_t;
 
 // Interrupt descriptor table
 __attribute__((aligned(16)))
-static idt_entry_t idt[256];
+static idt_entry_t idt[NUM_ENTRIES];
 
-// IDT Register
-static idtr_t idtr;
+// IDT Descriptor Register
+static idt_r_t idt_r;
 
-INT void breakpoint_handler(UNUSED struct interrupt_frame *frame, UNUSED unsigned long int error_code) {
-    printk("breakpoint!\n");
+__attribute__((interrupt))
+void handler(UNUSED struct interrupt_frame *frame) {
+    cli();
+    printk("interrupt\n");
+    sti();
+}
+
+__attribute__((interrupt))
+void err_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("interrupt with error code: 0x%lx\n", error_code);
+    sti();
 }
 
 void IRQ_init() {
-    idtr.base = (uintptr_t)&idt[0];
-    idtr.limit = (uint16_t)sizeof(idt);
+    uint8_t isr_handlers[] = {DIVIDE_BY_ZERO, DEBUG, NON_MASKABLE_INTERRUPT, BREAKPOINT, \
+        OVERFLOW, BOUND_RANGE_EXCEEDED, INVALID_OPCODE, DEVICE_NOT_AVAILABLE, \
+        x87_FLOAT_POINT, MACHINE_CHECK, SIMD_FLOATING_POINT, VIRTUALIZATION};
+
+    uint8_t isr_err_handlers[] = {DOUBLE_FAULT, INVALID_TSS, SEGMENT_NOT_PRESENT, \
+        STACK_SEGMENT_FAULT, GENERAL_PROTECTION_FAULT, PAGE_FAULT, ALIGNMENT_CHECK, \
+        CONTROL_PROTECTION, SECURITY_EXCEPTION};
+
+    uint8_t i;
+
+    // Setup IDT register
+    idt_r.base = (uint64_t)&idt[0];
+    idt_r.limit = (uint16_t)sizeof(idt_entry_t) * NUM_ENTRIES - 1;
 
     // Set ISRs in IDT
-    // IRQ_set_handler(BREAKPOINT, breakpoint_handler, 0);
-    // Configure PIC
+    for (i = 0; i < NUM_HANDLERS; i++) {
+        IRQ_set_handler(isr_handlers[i], handler);
+    }
 
-    asm volatile ("lidt %0" : : "m"(idtr)); // Load the IDT
-    sti(); // Set the interrupt flag
+    // Set ISRs with an error code
+    for (i = 0; i < NUM_ERR_HANDLERS; i++) {
+        IRQ_set_err_handler(isr_err_handlers[i], err_handler);
+    }
+
+    // Load the IDT and set interrupt flag
+    asm volatile ("lidt %0" : : "m"(idt_r)); 
+    sti();
 }
 
-// Mask determines which interrupts are enabled
-// void IRQ_set_mask(int irq) {
-
-// }
-
-
-// void IRQ_clear_mask(int irq) {
-
-// }
-
-// int IRQ_get_mask(int IRQline) {
-
-// }
-
-// void IRQ_end_of_interrupt(int irq) {
-
-// }
-
-void IRQ_set_handler(uint8_t irq, irq_handler_t handler, UNUSED void *arg) {
+static void set_isr(uint8_t irq, uint64_t handler_addr) {
+    idt_entry_t *entry = &idt[irq];
 
     // Setup handler address
-    idt[irq].isr_low = (uint64_t)handler & 0xFFFF;
-    idt[irq].isr_mid = ((uint64_t)handler >> 16) & 0xFFFF;
-    idt[irq].isr_high = ((uint64_t)handler >> 32) & 0xFFFFFFFF;
+    entry->isr_low = handler_addr & 0xFFFF;
+    entry->isr_mid = (handler_addr >> 16) & 0xFFFF;
+    entry->isr_high = (handler_addr >> 32) & 0xFFFFFFFF;
 
-    // GDT selector
+    entry->gdt_selector = 0x8; // Offset of the kernel code selector in the GDT
+    entry->ist = 0;
+    entry->attributes = FLAGS;
+    entry->reserved = 0;
+}
 
-    // Options
-    idt[irq].options.ist = 0;
-    idt[irq].options.reserved = 0;
-    idt[irq].options.gate = 0; // Interrupt gate
-    idt[irq].options.one = 0x7;
-    idt[irq].options.zero = 0;
-    idt[irq].options.dpl = 1; // ???
-    idt[irq].options.present = 1;
+void IRQ_set_handler(uint8_t irq, irq_handler_t handler) {
+    set_isr(irq, (uint64_t)handler);
+}
 
-    idt[irq].reserved = 0;
+void IRQ_set_err_handler(uint8_t irq, irq_err_handler_t handler) {
+    set_isr(irq, (uint64_t)handler);
 }
