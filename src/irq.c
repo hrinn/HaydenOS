@@ -1,7 +1,7 @@
 #include "irq.h"
+#include "isr.h"
 #include "printk.h"
 
-#define UNUSED __attribute__((unused))
 #define FLAGS 0x8E // 1000 1110 
 #define NUM_ENTRIES 256
 #define NUM_HANDLERS 12
@@ -29,47 +29,40 @@ static idt_entry_t idt[NUM_ENTRIES];
 // IDT Descriptor Register
 static idt_r_t idt_r;
 
-__attribute__((interrupt))
-void handler(UNUSED struct interrupt_frame *frame) {
-    cli();
-    printk("interrupt\n");
-    sti();
-}
-
-__attribute__((interrupt))
-void err_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("interrupt with error code: 0x%lx\n", error_code);
-    sti();
-}
-
 void IRQ_init() {
-    uint8_t isr_handlers[] = {DIVIDE_BY_ZERO, DEBUG, NON_MASKABLE_INTERRUPT, BREAKPOINT, \
-        OVERFLOW, BOUND_RANGE_EXCEEDED, INVALID_OPCODE, DEVICE_NOT_AVAILABLE, \
-        x87_FLOAT_POINT, MACHINE_CHECK, SIMD_FLOATING_POINT, VIRTUALIZATION};
-
-    uint8_t isr_err_handlers[] = {DOUBLE_FAULT, INVALID_TSS, SEGMENT_NOT_PRESENT, \
-        STACK_SEGMENT_FAULT, GENERAL_PROTECTION_FAULT, PAGE_FAULT, ALIGNMENT_CHECK, \
-        CONTROL_PROTECTION, SECURITY_EXCEPTION};
-
-    uint8_t i;
+    // Set ISRs in IDT
+    IRQ_set_handler(DIVIDE_BY_ZERO, handler);
+    IRQ_set_handler(DEBUG, handler);
+    IRQ_set_handler(NON_MASKABLE_INTERRUPT, handler);
+    IRQ_set_handler(BREAKPOINT, handler);
+    IRQ_set_handler(OVERFLOW, handler);
+    IRQ_set_handler(BOUND_RANGE_EXCEEDED, handler);
+    IRQ_set_handler(INVALID_OPCODE, handler);
+    IRQ_set_handler(DEVICE_NOT_AVAILABLE, handler);
+    IRQ_set_handler(x87_FLOAT_POINT, handler);
+    IRQ_set_handler(MACHINE_CHECK, handler);
+    IRQ_set_handler(SIMD_FLOATING_POINT, handler);
+    IRQ_set_handler(VIRTUALIZATION, handler);
+    IRQ_set_err_handler(DOUBLE_FAULT, double_fault_handler);
+    IRQ_set_err_handler(INVALID_TSS, invalid_tss_handler);
+    IRQ_set_err_handler(SEGMENT_NOT_PRESENT, segment_not_present_handler);
+    IRQ_set_err_handler(STACK_SEGMENT_FAULT, stack_segment_fault_handler);
+    IRQ_set_err_handler(GENERAL_PROTECTION_FAULT, general_protection_fault_handler);
+    IRQ_set_err_handler(PAGE_FAULT, page_fault_handler);
+    IRQ_set_err_handler(ALIGNMENT_CHECK, alignment_check_handler);
+    IRQ_set_err_handler(CONTROL_PROTECTION, control_protection_handler);
+    IRQ_set_err_handler(SECURITY_EXCEPTION, security_exception_handler);
 
     // Setup IDT register
     idt_r.base = (uint64_t)&idt[0];
     idt_r.limit = (uint16_t)sizeof(idt_entry_t) * NUM_ENTRIES - 1;
 
-    // Set ISRs in IDT
-    for (i = 0; i < NUM_HANDLERS; i++) {
-        IRQ_set_handler(isr_handlers[i], handler);
-    }
-
-    // Set ISRs with an error code
-    for (i = 0; i < NUM_ERR_HANDLERS; i++) {
-        IRQ_set_err_handler(isr_err_handlers[i], err_handler);
-    }
-
-    // Load the IDT and set interrupt flag
+    // Load the IDT
     asm volatile ("lidt %0" : : "m"(idt_r)); 
+
+    // Set interrupt mask
+
+    // Set interrupt flag
     sti();
 }
 
