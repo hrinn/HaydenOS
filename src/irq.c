@@ -1,11 +1,12 @@
 #include "irq.h"
-#include "isr.h"
 #include "printk.h"
+#include "table_register.h"
 
 #define FLAGS 0x8E // 1000 1110 
 #define NUM_ENTRIES 256
 #define NUM_HANDLERS 12
 #define NUM_ERR_HANDLERS 9
+#define UNUSED __attribute__((unused))
 
 typedef struct {
     uint16_t isr_low;       // Lower 16 bits of ISR's address
@@ -17,17 +18,86 @@ typedef struct {
     uint32_t reserved;
 } __attribute__((packed)) idt_entry_t;
 
-typedef struct {
-    uint16_t limit; // Size of IDT
-    uint64_t base;  // Address of IDT
-} __attribute__((packed)) idt_r_t;
-
 // Interrupt descriptor table
 __attribute__((aligned(16)))
 static idt_entry_t idt[NUM_ENTRIES];
 
-// IDT Descriptor Register
-static idt_r_t idt_r;
+__attribute__((interrupt))
+void handler(UNUSED struct interrupt_frame *frame) {
+    cli();
+    printk("interrupt\n");
+    sti();
+}
+
+__attribute__((interrupt))
+void err_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("interrupt with error code: 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void double_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("double fault 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void invalid_tss_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("invalid tss 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void segment_not_present_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("segment not present 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void page_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("page_fault 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void control_protection_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("control protection 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void stack_segment_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("stack segment 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void general_protection_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("general protection fault 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void alignment_check_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("alignment check 0x%lx\n", error_code);
+    sti();
+}
+
+__attribute__((interrupt))
+void security_exception_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
+    cli();
+    printk("security exception 0x%lx\n", error_code);
+    sti();
+}
 
 void IRQ_init() {
     // Set ISRs in IDT
@@ -53,17 +123,13 @@ void IRQ_init() {
     IRQ_set_err_handler(CONTROL_PROTECTION, control_protection_handler);
     IRQ_set_err_handler(SECURITY_EXCEPTION, security_exception_handler);
 
-    // Setup IDT register
-    idt_r.base = (uint64_t)&idt[0];
-    idt_r.limit = (uint16_t)sizeof(idt_entry_t) * NUM_ENTRIES - 1;
-
-    // Load the IDT
-    asm volatile ("lidt %0" : : "m"(idt_r)); 
+    // Load IDT register
+    lidt(&idt[0], sizeof(idt_entry_t) * NUM_ENTRIES - 1);
 
     // Set interrupt mask
 
     // Set interrupt flag
-    sti();
+    // sti();
 }
 
 static void set_isr(uint8_t irq, uint64_t handler_addr) {

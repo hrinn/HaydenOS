@@ -1,6 +1,6 @@
 LD := x86_64-elf-ld
 CC := x86_64-elf-gcc
-CFLAGS := -ffreestanding -Wall -Wextra -pedantic -g -mgeneral-regs-only
+CFLAGS := -ffreestanding -Wall -Werror -pedantic -g -mgeneral-regs-only -mno-red-zone
 
 kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
