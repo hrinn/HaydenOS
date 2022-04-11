@@ -194,7 +194,7 @@ uint8_t write_keyboard(uint8_t byte) {
 
 // Initializes the keyboard
 // Returns 1 on success, negative on failure
-int init_keyboard() {
+int init_ps2_keyboard() {
     uint8_t resp;
 
     DEBUG_PRINT("Initializing keyboard\n");
@@ -203,7 +203,7 @@ int init_keyboard() {
     DEBUG_PRINT("Resetting keyboard and starting self test\n");
     if (write_keyboard(CMD_RST_KEYBOARD) != KEYB_ACK) {
         DEBUG_PRINT("Failed reset and self test\n");
-        return -1;
+        return -3;
     }
 
     // Set scan code set
@@ -211,21 +211,29 @@ int init_keyboard() {
     if ((resp = write_keyboard(CMD_SET_SCANCODE)) == KEYB_CONT) {
         if ((resp = write_keyboard(SUBCMD_SCANCODE_SET_2)) != KEYB_ACK) {
             DEBUG_PRINT("Failed to set scan code to set 2, received 0x%x\n", resp);
-            return -3;
+            return -5;
         }
     } else {
         DEBUG_PRINT("Failed to set scan code set, received 0x%x\n", resp);
-        return -2;
+        return -4;
     }
 
     // Enable keyboard scanning
     DEBUG_PRINT("Enabling keyboard scanning\n");
     if (write_keyboard(CMD_ENABLE_SCAN) != KEYB_ACK)  {
         DEBUG_PRINT("Failed to enable scanning\n");
-        return -4;
+        return -6;
     }
 
     return 1;
+}
+
+int keyboard_init() {
+    int res;
+    if ((res = init_ps2_controller()) != 1) {
+        return res;
+    }
+    return init_ps2_keyboard();
 }
 
 // Read data from the keyboard and translate it into key presses

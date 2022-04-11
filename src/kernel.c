@@ -22,12 +22,10 @@ void kmain() {
 
     VGA_clear();
     IRQ_init();
-    init_ps2_controller();
-    init_keyboard();
 
-    while (1) {
-        printk("%c", poll_keyboard());
-    }
-    
+    asm("int3");
+    asm("int3");
+    asm("int3");
+
     halt();
 }

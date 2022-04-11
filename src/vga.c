@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "string.h"
+#include "irq.h"
 
 #define VGA_ADDR 0xb8000
 #define VGA_WIDTH 80
@@ -14,31 +15,40 @@ static uint16_t *vga = (uint16_t *)VGA_ADDR;
 static uint8_t fg_color = VGA_WHITE;
 static uint8_t bg_color = VGA_BLACK;
 
+void set_cursor(uint16_t val) {
+    cli();
+    cursor = val;
+    sti();
+}
+
 void VGA_clear() {
     memset(vga, 0, VGA_WIDTH * VGA_HEIGHT * 2);
-    cursor = 0;
+    set_cursor(0);
 }
 
 void scroll() {
     memcpy(vga, vga + VGA_WIDTH, ((VGA_HEIGHT - 1) * VGA_WIDTH) * 2);
     memset(vga + ((VGA_HEIGHT - 1) * VGA_WIDTH), 0, VGA_WIDTH * 2);
-    cursor = (VGA_HEIGHT - 1) * VGA_WIDTH;
+    set_cursor((VGA_HEIGHT - 1) * VGA_WIDTH);
 } 
 
 void VGA_display_char(char c) {
     switch (c) {
         case '\n':
-            cursor = LINE(cursor) + VGA_WIDTH;
+            set_cursor(LINE(cursor) + VGA_WIDTH);
             break;
         case '\b':
             if (cursor == 0) break;
-            vga[--cursor] = (bg_color << 12) | (fg_color << 8);
+            set_cursor(cursor - 1);
+            vga[cursor] = (bg_color << 12) | (fg_color << 8);
             break;
         case '\t':
-            cursor += TAB_WIDTH;
+            set_cursor(cursor + TAB_WIDTH);
             break;
         default:
-            vga[cursor++] = (bg_color << 12) | (fg_color << 8) | c;
+            vga[cursor] = (bg_color << 12) | (fg_color << 8) | c;
+            set_cursor(cursor + 1);
+            break;
     }
 
 

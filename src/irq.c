@@ -1,155 +1,94 @@
 #include "irq.h"
+#include "isr_wrapper.h"
 #include "printk.h"
 #include "table_register.h"
 
-#define FLAGS 0x8E // 1000 1110 
+#define INTERRUPT_GATE 0xE
 #define NUM_ENTRIES 256
-#define NUM_HANDLERS 12
-#define NUM_ERR_HANDLERS 9
-#define UNUSED __attribute__((unused))
 
+// IDT entry
 typedef struct {
     uint16_t isr_low;       // Lower 16 bits of ISR's address
     uint16_t gdt_selector;  // Selects a code segment in the GDT
-    uint8_t ist;            // IST in the TSS that the CPU will load into RSP
-    uint8_t attributes;     // Type and attributes
+
+    uint8_t ist : 3;        // Index of Interrupt Stack Table
+    uint8_t res1 : 5;
+    
+    uint8_t type : 4;       // 0xE (interrupt gate), 0xF (trap gate)
+    uint8_t zero : 1;
+    uint8_t dpl : 2;        // Protection / privilege level
+    uint8_t present : 1;    // Indicates valid table entry
+
     uint16_t isr_mid;       // Middle 16 bits of ISR's address
     uint32_t isr_high;      // Upper 32 bits of ISR's address
-    uint32_t reserved;
+    uint32_t res2;
 } __attribute__((packed)) idt_entry_t;
 
 // Interrupt descriptor table
 __attribute__((aligned(16)))
 static idt_entry_t idt[NUM_ENTRIES];
 
-__attribute__((interrupt))
-void handler(UNUSED struct interrupt_frame *frame) {
-    cli();
-    printk("interrupt\n");
-    sti();
-}
+// ISR table (indexed by assembly isr wrappers)
+irq_handler_t irq_handler_table[NUM_ENTRIES];
 
-__attribute__((interrupt))
-void err_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("interrupt with error code: 0x%lx\n", error_code);
-    sti();
-}
+// IRQ name table
+char *irq_name_table[32] = {
+    "Divide-By-Zero-Error", "Debug", "Non-Maskable-Interrupt", "Breakpoint",
+    "Overflow", "Bound-Range", "Invalid-Opcode", "Device-Not-Available",
+    "Double-Fault", "Coprocessor-Segment-Overrun (Unsupported)", "Invalid-TSS",
+    "Segment-Not-Present", "Stack", "General-Protection", "Page-Fault", "Reserved",
+    "x87 Floating-Point Exception-Pending", "Alignment-Check", "Machine-Check",
+    "SIMD Floating-Point", "Reserved", "Control-Protection-Exception", "Reserved",
+    "Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
+    "Hypervisor Injection Exception", "VMM Communication Exception", 
+    "Security Exception", "Reserved"
+};
 
-__attribute__((interrupt))
-void double_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("double fault 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void invalid_tss_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("invalid tss 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void segment_not_present_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("segment not present 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void page_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("page_fault 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void control_protection_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("control protection 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void stack_segment_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("stack segment 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void general_protection_fault_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("general protection fault 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void alignment_check_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("alignment check 0x%lx\n", error_code);
-    sti();
-}
-
-__attribute__((interrupt))
-void security_exception_handler(UNUSED struct interrupt_frame *frame, unsigned long int error_code) {
-    cli();
-    printk("security exception 0x%lx\n", error_code);
-    sti();
+void default_handler(int irq, int error_code, void *arg) {
+    printk("Unhandled Interrupt %d", irq);
+    if (irq < 32) {
+        printk(" (%s)\n", irq_name_table[irq]);
+    } else {
+        printk(" (External Interrupt)\n");
+    }
 }
 
 void IRQ_init() {
-    // Set ISRs in IDT
-    IRQ_set_handler(DIVIDE_BY_ZERO, handler);
-    IRQ_set_handler(DEBUG, handler);
-    IRQ_set_handler(NON_MASKABLE_INTERRUPT, handler);
-    IRQ_set_handler(BREAKPOINT, handler);
-    IRQ_set_handler(OVERFLOW, handler);
-    IRQ_set_handler(BOUND_RANGE_EXCEEDED, handler);
-    IRQ_set_handler(INVALID_OPCODE, handler);
-    IRQ_set_handler(DEVICE_NOT_AVAILABLE, handler);
-    IRQ_set_handler(x87_FLOAT_POINT, handler);
-    IRQ_set_handler(MACHINE_CHECK, handler);
-    IRQ_set_handler(SIMD_FLOATING_POINT, handler);
-    IRQ_set_handler(VIRTUALIZATION, handler);
-    IRQ_set_err_handler(DOUBLE_FAULT, double_fault_handler);
-    IRQ_set_err_handler(INVALID_TSS, invalid_tss_handler);
-    IRQ_set_err_handler(SEGMENT_NOT_PRESENT, segment_not_present_handler);
-    IRQ_set_err_handler(STACK_SEGMENT_FAULT, stack_segment_fault_handler);
-    IRQ_set_err_handler(GENERAL_PROTECTION_FAULT, general_protection_fault_handler);
-    IRQ_set_err_handler(PAGE_FAULT, page_fault_handler);
-    IRQ_set_err_handler(ALIGNMENT_CHECK, alignment_check_handler);
-    IRQ_set_err_handler(CONTROL_PROTECTION, control_protection_handler);
-    IRQ_set_err_handler(SECURITY_EXCEPTION, security_exception_handler);
+    int i;
+
+    // Set default handlers for the 32 system IRQs
+    for (i = 0; i < 32; i++) {
+        IRQ_set_handler(i, default_handler);
+    }
 
     // Load IDT register
     lidt(&idt[0], sizeof(idt_entry_t) * NUM_ENTRIES - 1);
 
-    // Set interrupt mask
+    // Set interrupt mask (PIC)
 
     // Set interrupt flag
-    // sti();
-}
-
-static void set_isr(uint8_t irq, uint64_t handler_addr) {
-    idt_entry_t *entry = &idt[irq];
-
-    // Setup handler address
-    entry->isr_low = handler_addr & 0xFFFF;
-    entry->isr_mid = (handler_addr >> 16) & 0xFFFF;
-    entry->isr_high = (handler_addr >> 32) & 0xFFFFFFFF;
-
-    entry->gdt_selector = 0x8; // Offset of the kernel code selector in the GDT
-    entry->ist = 0;
-    entry->attributes = FLAGS;
-    entry->reserved = 0;
+    sti();
 }
 
 void IRQ_set_handler(uint8_t irq, irq_handler_t handler) {
-    set_isr(irq, (uint64_t)handler);
-}
+    idt_entry_t *entry = &idt[irq];
 
-void IRQ_set_err_handler(uint8_t irq, irq_err_handler_t handler) {
-    set_isr(irq, (uint64_t)handler);
+    // Get associated ISR wrapper
+    uint64_t wrapper_addr = (uint64_t)isr_wrapper_table[irq];
+
+    // Setup IDT entry
+    entry->isr_low = wrapper_addr & 0xFFFF;
+    entry->isr_mid = (wrapper_addr >> 16) & 0xFFFF;
+    entry->isr_high = (wrapper_addr >> 32) & 0xFFFFFFFF;
+
+    entry->gdt_selector = 8; // Offset of the kernel code selector in the GDT
+    entry->ist = 0;
+    entry->type = INTERRUPT_GATE;
+    entry->zero = 0;
+    entry->dpl = 0;
+    entry->present = 1;
+    entry->res2 = 0;
+
+    // Put handler in handler table
+    irq_handler_table[irq] = handler;
 }

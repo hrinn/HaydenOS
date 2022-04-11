@@ -12,8 +12,8 @@ struct interrupt_frame {
     uint64_t instruction_pointer;
 };
 
-typedef void (*irq_handler_t)(struct interrupt_frame *);
-typedef void (*irq_err_handler_t)(struct interrupt_frame *, long unsigned int);
+typedef void (*isr_wrapper_t)(void);
+typedef void (*irq_handler_t)(int, int, void *);
 
 // ISR Numbers
 #define DIVIDE_BY_ZERO 0
@@ -45,7 +45,6 @@ void IRQ_clear_mask(int irq);
 int IRQ_get_mask(int IRQline);
 void IRQ_end_of_interrupt(int irq);
 void IRQ_set_handler(uint8_t irq, irq_handler_t handler);
-void IRQ_set_err_handler(uint8_t irq, irq_err_handler_t handler);
 
 // Assembly helpers
 static inline void cli() {
