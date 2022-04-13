@@ -45,4 +45,8 @@ static inline void outl(uint16_t port, uint32_t byte) {
                     : "a"(byte) , "Nd"(port));
 }
 
+static inline void io_wait() {
+    outb(0x80, 0);
+}
+
 #endif

@@ -1,9 +1,11 @@
 #include "keyboard.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "printk.h"
 #include "ioport.h"
 #include "debug.h"
+#include "irq.h"
 
 // I/O Port Addresses
 #define PS2_STATUS 0x64
@@ -38,7 +40,10 @@
 #define KEYB_ACK 0xFA
 #define KEYB_CONT 0xAA
 
+// Other
 #define N_TRIES 3
+#define KEYBOARD_INT_LINE 1
+#define KEYBOARD_IRQ 33
 
 // Operation scan codes
 #define SC_BREAK 0xF0
@@ -114,7 +119,7 @@ enum key {nokey, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, \
 
 // Strings for actual chars
 static char ascii[] = "\0abcdefghijklmnopqrstuvwxyz1234567890`-=\\\b \t\n[];\',./";
-static char uascii[] = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()~_+|\b \t\n{}:\"<>?";
+static char ASCII[] = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()~_+|\b \t\n{}:\"<>?";
 
 // Arrays for tracking key states
 static uint8_t mod_state;
@@ -124,6 +129,8 @@ static uint64_t key_state;
 #define SET_BIT(I, k) (I |= (1 << k))
 #define CLEAR_BIT(I, k) (I &= ~(1 << k))
 #define TEST_BIT(I, k) (I & (1 << k))
+
+void keyboard_handler(uint8_t, uint32_t, void *);
 
 uint8_t read_data() {
     while ((inb(PS2_STATUS) & 0x1) == 0); // Waiting for full output buffer
@@ -218,6 +225,9 @@ int init_ps2_keyboard() {
         return -4;
     }
 
+    // Register keyboard interrupt handler
+    
+
     // Enable keyboard scanning
     DEBUG_PRINT("Enabling keyboard scanning\n");
     if (write_keyboard(CMD_ENABLE_SCAN) != KEYB_ACK)  {
@@ -233,154 +243,168 @@ int keyboard_init() {
     if ((res = init_ps2_controller()) != 1) {
         return res;
     }
-    return init_ps2_keyboard();
+    if ((res = init_ps2_keyboard()) != 1) {
+        return res;
+    }
+    // Initialize interrupts
+    IRQ_set_handler(KEYBOARD_IRQ, keyboard_handler, NULL);
+    IRQ_clear_mask(KEYBOARD_INT_LINE);
+    return 1;
 }
 
-// Read data from the keyboard and translate it into key presses
-char poll_keyboard() {
-    bool release = false;
-    enum key key;
-    enum modifier mod;
+static bool release = false;
 
-    while (1) {
-        key = nokey;
-        mod = nomod;
+char read_keyboard() {
+    enum key key = nokey;
+    enum modifier mod = nomod;
 
-        switch(read_data()) {
-            case SC_BREAK:
-                release = true; break;
-            case SC_A:
-                key = a; break;
-            case SC_B:
-                key = b; break;
-            case SC_C:
-                key = c; break;
-            case SC_D:
-                key = d; break;
-            case SC_E:
-                key = e; break;
-            case SC_F:
-                key = f; break;
-            case SC_G:
-                key = g; break;
-            case SC_H:
-                key = h; break;
-            case SC_I:
-                key = i; break;
-            case SC_J:
-                key = j; break;
-            case SC_K:
-                key = k; break;
-            case SC_L:
-                key = l; break;
-            case SC_M:
-                key = m; break;
-            case SC_N:
-                key = n; break;
-            case SC_O:
-                key = o; break;
-            case SC_P:
-                key = p; break;
-            case SC_Q:
-                key = q; break;
-            case SC_R:
-                key = r; break;
-            case SC_S:
-                key = s; break;
-            case SC_T:
-                key = t; break;
-            case SC_U:
-                key = u; break;
-            case SC_V:
-                key = v; break;
-            case SC_W:
-                key = w; break;
-            case SC_X:
-                key = x; break;
-            case SC_Y:
-                key = y; break;
-            case SC_Z:
-                key = z; break;
-            case SC_0:
-                key = k0; break;
-            case SC_1:
-                key = k1; break;
-            case SC_2:
-                key = k2; break;
-            case SC_3:
-                key = k3; break;
-            case SC_4:
-                key = k4; break;
-            case SC_5:
-                key = k5; break;
-            case SC_6:
-                key = k6; break;
-            case SC_7:
-                key = k7; break;
-            case SC_8:
-                key = k8; break;
-            case SC_9:
-                key = k9; break;
-            case SC_BACKTICK:
-                key = backtick; break;
-            case SC_DASH:
-                key = dash; break;
-            case SC_EQUALS:
-                key = equals; break;
-            case SC_BACKSLASH:
-                key = backslash; break;
-            case SC_BKSP:
-                key = bksp; break;
-            case SC_SPACE:
-                key = space; break;
-            case SC_TAB:
-                key = tab; break;
-            case SC_ENTER:
-                key = enter; break;
-            case SC_LBRACKET:
-                key = lbracket; break;
-            case SC_RBRACKET:
-                key = rbracket; break;
-            case SC_SEMICOLON:
-                key = semicolon; break;
-            case SC_SQUOTE:
-                key = squote; break;
-            case SC_COMMA:
-                key = comma; break;
-            case SC_PERIOD:
-                key = period; break;
-            case SC_FWDSLASH:
-                key = fwdslash; break;
-            case SC_LSHFT:
-                mod = shift; break;
-            case SC_LCTRL:
-                mod = control; break;
-            case SC_LALT:
-                mod = alt; break;
-            case SC_RSHFT:
-                mod = shift; break;
-            default: // Unsupported scancode
-                break;
+    switch (inb(PS2_DATA)) {
+        case SC_BREAK:
+            release = true; break;
+        case SC_A:
+            key = a; break;
+        case SC_B:
+            key = b; break;
+        case SC_C:
+            key = c; break;
+        case SC_D:
+            key = d; break;
+        case SC_E:
+            key = e; break;
+        case SC_F:
+            key = f; break;
+        case SC_G:
+            key = g; break;
+        case SC_H:
+            key = h; break;
+        case SC_I:
+            key = i; break;
+        case SC_J:
+            key = j; break;
+        case SC_K:
+            key = k; break;
+        case SC_L:
+            key = l; break;
+        case SC_M:
+            key = m; break;
+        case SC_N:
+            key = n; break;
+        case SC_O:
+            key = o; break;
+        case SC_P:
+            key = p; break;
+        case SC_Q:
+            key = q; break;
+        case SC_R:
+            key = r; break;
+        case SC_S:
+            key = s; break;
+        case SC_T:
+            key = t; break;
+        case SC_U:
+            key = u; break;
+        case SC_V:
+            key = v; break;
+        case SC_W:
+            key = w; break;
+        case SC_X:
+            key = x; break;
+        case SC_Y:
+            key = y; break;
+        case SC_Z:
+            key = z; break;
+        case SC_0:
+            key = k0; break;
+        case SC_1:
+            key = k1; break;
+        case SC_2:
+            key = k2; break;
+        case SC_3:
+            key = k3; break;
+        case SC_4:
+            key = k4; break;
+        case SC_5:
+            key = k5; break;
+        case SC_6:
+            key = k6; break;
+        case SC_7:
+            key = k7; break;
+        case SC_8:
+            key = k8; break;
+        case SC_9:
+            key = k9; break;
+        case SC_BACKTICK:
+            key = backtick; break;
+        case SC_DASH:
+            key = dash; break;
+        case SC_EQUALS:
+            key = equals; break;
+        case SC_BACKSLASH:
+            key = backslash; break;
+        case SC_BKSP:
+            key = bksp; break;
+        case SC_SPACE:
+            key = space; break;
+        case SC_TAB:
+            key = tab; break;
+        case SC_ENTER:
+            key = enter; break;
+        case SC_LBRACKET:
+            key = lbracket; break;
+        case SC_RBRACKET:
+            key = rbracket; break;
+        case SC_SEMICOLON:
+            key = semicolon; break;
+        case SC_SQUOTE:
+            key = squote; break;
+        case SC_COMMA:
+            key = comma; break;
+        case SC_PERIOD:
+            key = period; break;
+        case SC_FWDSLASH:
+            key = fwdslash; break;
+        case SC_LSHFT:
+            mod = shift; break;
+        case SC_LCTRL:
+            mod = control; break;
+        case SC_LALT:
+            mod = alt; break;
+        case SC_RSHFT:
+            mod = shift; break;
+        default: // Unsupported interrupt
+            return '\0';
+    }
+
+    if (key != nokey) {
+        if (release) {
+            release = false;
+            CLEAR_BIT(key_state, key);
+        } else {
+            SET_BIT(key_state, key);
+            // Return character after finished key sequence
+            return TEST_BIT(mod_state, shift) ? ASCII[key] : ascii[key];
         }
+    }     
 
-        if (key != nokey) {
-            if (release) {
-                release = false;
-                CLEAR_BIT(key_state, key);
-            } else {
-                SET_BIT(key_state, key);
-                // Send key on press
-                return TEST_BIT(mod_state, shift) ? uascii[key] : ascii[key];
-            }
-        }
-
-        if (mod != nomod) {
-            if (release) {
-                release = false;
-                CLEAR_BIT(mod_state, mod);
-            } else {
-                SET_BIT(mod_state, mod);
-            }
+    if (mod != nomod) {
+        if (release) {
+            release = false;
+            CLEAR_BIT(mod_state, mod);
+        } else {
+            SET_BIT(mod_state, mod);
         }
     }
+
+    // No character ready
+    return '\0';
+}
+
+void keyboard_handler(
+    __attribute__((unused)) uint8_t irq, 
+    __attribute__((unused)) uint32_t error_code, 
+    __attribute__((unused)) void *arg) 
+{
+    char c = read_keyboard();
+    if (c != '\0') printk("%c", c);
+    IRQ_end_of_interrupt(KEYBOARD_INT_LINE);
 }

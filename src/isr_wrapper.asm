@@ -5,8 +5,8 @@ global isr_wrapper_%1
 isr_wrapper_%1:
     push rdi
     push rsi
-    mov rdi, %1 ; place irq number in rdi
-    mov rsi, -1 ; place invalid error code in rsi
+    mov dil, %1 ; place irq number in rdi
+    mov esi, -1 ; place invalid error code in rsi
     jmp isr_generic
 %endmacro
 
@@ -16,16 +16,12 @@ isr_wrapper_%1:
     push rsi
     mov esi, [rsp + 8]  ; place error code in rsi
     mov [rsp + 8], rdi  ; overwrite error code with rdi
-    mov rdi, %1         ; place irq number in rdi
+    mov dil, %1         ; place irq number in rdi
     jmp isr_generic
 %endmacro
 
 section .text
 bits 64
-global call_int
-call_int:
-    int 64
-    ret
 
 global isr_generic
 isr_generic:

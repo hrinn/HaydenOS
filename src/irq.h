@@ -3,15 +3,17 @@
 
 #include <stdint.h>
 
-typedef void (*irq_handler_t)(int, int, void *);
+typedef void (*irq_handler_t)(uint8_t irq, uint32_t error_code, void *arg);
 
 // IRQ Interface
 void IRQ_init();
-void IRQ_set_mask(uint8_t irq);
-void IRQ_clear_mask(uint8_t irq);
-int IRQ_get_mask(int IRQline);
-void IRQ_end_of_interrupt(int irq);
-void IRQ_set_handler(uint8_t irq, irq_handler_t handler);
+void IRQ_set_handler(uint8_t irq, irq_handler_t handler, void *arg);
+
+// PIC Interface
+void IRQ_set_mask(uint8_t irq_line);
+void IRQ_clear_mask(uint8_t irq_line);
+uint8_t IRQ_get_mask(uint8_t irq_line);
+void IRQ_end_of_interrupt(uint8_t irq_line);
 
 // Assembly helpers
 static inline void cli() {
