@@ -4,6 +4,8 @@
 #include "irq.h"
 #include "debug.h"
 
+extern void call_int(void);
+
 void print_welcome() {
     printk("Welcome to ");
     VGA_set_fg_color(VGA_LIGHT_GREEN);
@@ -19,13 +21,16 @@ void halt() {
 
 void kmain() {
     GDB_PAUSE; // set gdbp=1
-
-    VGA_clear();
+    
     IRQ_init();
 
-    asm("int3");
-    asm("int3");
-    asm("int3");
+    call_int();
+
+    keyboard_init();
+
+    while (1) {
+        printk("%c", poll_keyboard());
+    }
 
     halt();
 }

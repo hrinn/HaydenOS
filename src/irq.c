@@ -2,14 +2,22 @@
 #include "isr_wrapper.h"
 #include "printk.h"
 #include "table_register.h"
+#include "ioport.h"
 
 #define INTERRUPT_GATE 0xE
 #define NUM_ENTRIES 256
 
+// PIC
+#define PIC1_COMMAND 0x20
+#define PIC1_DATA 0x21
+#define PIC2_COMMAND 0xA0
+#define PIC2_DATA 0xA1
+
+
 // IDT entry
 typedef struct {
     uint16_t isr_low;       // Lower 16 bits of ISR's address
-    uint16_t gdt_selector;  // Selects a code segment in the GDT
+    uint16_t target_selector;  // Selects a code segment in the GDT
 
     uint8_t ist : 3;        // Index of Interrupt Stack Table
     uint8_t res1 : 5;
@@ -44,33 +52,16 @@ char *irq_name_table[32] = {
     "Security Exception", "Reserved"
 };
 
-void default_handler(int irq, int error_code, void *arg) {
+void irq_handler(int irq, int error_code) {
     printk("Unhandled Interrupt %d", irq);
     if (irq < 32) {
         printk(" (%s)\n", irq_name_table[irq]);
     } else {
-        printk(" (External Interrupt)\n");
+        printk("\n");
     }
 }
 
-void IRQ_init() {
-    int i;
-
-    // Set default handlers for the 32 system IRQs
-    for (i = 0; i < 32; i++) {
-        IRQ_set_handler(i, default_handler);
-    }
-
-    // Load IDT register
-    lidt(&idt[0], sizeof(idt_entry_t) * NUM_ENTRIES - 1);
-
-    // Set interrupt mask (PIC)
-
-    // Set interrupt flag
-    sti();
-}
-
-void IRQ_set_handler(uint8_t irq, irq_handler_t handler) {
+void set_idt_entry(uint8_t irq) {
     idt_entry_t *entry = &idt[irq];
 
     // Get associated ISR wrapper
@@ -81,14 +72,31 @@ void IRQ_set_handler(uint8_t irq, irq_handler_t handler) {
     entry->isr_mid = (wrapper_addr >> 16) & 0xFFFF;
     entry->isr_high = (wrapper_addr >> 32) & 0xFFFFFFFF;
 
-    entry->gdt_selector = 8; // Offset of the kernel code selector in the GDT
+    entry->target_selector = 8; // Offset of the kernel code selector in the GDT
     entry->ist = 0;
+    entry->res1 = 0;
     entry->type = INTERRUPT_GATE;
     entry->zero = 0;
     entry->dpl = 0;
     entry->present = 1;
     entry->res2 = 0;
+}
 
-    // Put handler in handler table
-    irq_handler_table[irq] = handler;
+void IRQ_init() {
+    int i;
+
+    // Set all entries in IDT
+    for (i = 0; i < NUM_ENTRIES; i++) {
+        set_idt_entry(i);
+    }
+
+    // Load IDT register
+    lidt(&idt[0], sizeof(idt_entry_t) * NUM_ENTRIES - 1);
+
+    // Mask out all PIC interrupts
+    outb(PIC1_DATA, 0xFF);
+    outb(PIC2_DATA, 0xFF);
+
+    // Set interrupt flag
+    sti();
 }
