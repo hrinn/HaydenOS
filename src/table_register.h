@@ -26,4 +26,8 @@ static inline void lgdt(void *base, uint16_t size) {
     asm ( "lgdt %0" : : "m"(gdt_reg));
 }
 
+static inline void ltr(uint16_t offset) {
+    asm ( "ltr %0" : : "m"(offset));
+}
+
 #endif

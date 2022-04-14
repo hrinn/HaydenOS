@@ -3,6 +3,7 @@
 #include "printk.h"
 #include "table_register.h"
 #include "ioport.h"
+#include "gdt.h"
 
 // Interrupt configuration
 #define INTERRUPT_GATE 0xE
@@ -22,6 +23,11 @@
 #define PIC2_OFFSET 0x28
 #define ICW1_INIT 0x11
 #define ICW4_8086 0x01
+
+// IRQ Numbers
+#define DOUBLE_FAULT 8
+#define PAGE_FAULT 14
+#define GENERAL_PROTECTION_FAULT 13
 
 void IRQ_end_of_interrupt(uint8_t irq_line);
 
@@ -88,7 +94,7 @@ void set_idt_entry(uint8_t irq) {
     entry->isr_mid = (wrapper_addr >> 16) & 0xFFFF;
     entry->isr_high = (wrapper_addr >> 32) & 0xFFFFFFFF;
 
-    entry->target_selector = 8; // Offset of the kernel code selector in the GDT
+    entry->target_selector = KERNEL_CODE_OFFSET;
     entry->ist = 0;
     entry->res1 = 0;
     entry->type = INTERRUPT_GATE;
@@ -131,6 +137,11 @@ void IRQ_init() {
     for (i = 0; i < NUM_ENTRIES; i++) {
         set_idt_entry(i);
     }
+
+    // Set separate ISTs for DF, PF, GF
+    idt[DOUBLE_FAULT].ist = 1;
+    idt[PAGE_FAULT].ist = 2;
+    idt[GENERAL_PROTECTION_FAULT].ist = 3;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_ENTRIES) - 1);

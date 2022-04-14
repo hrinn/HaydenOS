@@ -1,4 +1,5 @@
 global check_int
+global ltr
 
 section .text
 bits 64

@@ -1,4 +1,5 @@
 global start
+global gdt64
 extern long_mode_start
 
 section .rodata
