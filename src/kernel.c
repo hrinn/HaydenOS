@@ -20,11 +20,12 @@ void halt() {
 void kmain() {
     GDB_PAUSE; // set gdbp=1
     
-    IRQ_init();
     VGA_clear();
+    IRQ_init();
     keyboard_init();
 
     print_welcome();
+
 
     halt();
 }

@@ -73,9 +73,7 @@ void irq_handler(uint8_t irq, uint32_t error_code) {
         // No entry set for this irq
         printk("Unhandled Interrupt %d (%s)\n", 
             irq, irq < 32 ? irq_name_table[irq] : "External/Trap");
-        if (irq >= PIC1_OFFSET && irq <= PIC1_OFFSET + 15) {
-            IRQ_end_of_interrupt(irq - PIC1_OFFSET);
-        }
+        while (1) asm("hlt");
     }
 }
 

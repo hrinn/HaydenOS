@@ -24,4 +24,6 @@ static inline void sti() {
     asm volatile ("sti");
 }
 
+extern uint16_t check_int(void);
+
 #endif
