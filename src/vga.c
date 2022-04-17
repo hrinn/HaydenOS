@@ -58,24 +58,14 @@ void VGA_display_char(char c) {
     if (int_en) sti();
 }
 
-void VGA_display_str(const char *s) {
-    if (s == NULL) return;
-
-    while(*s) {
-        VGA_display_char(*s);
-        s++;
-    }
-}
-
-void VGA_display_strn(const char *s, int n) {
+void VGA_display_str(const char *s, int len) {
     int i;
     if (s == NULL) return;
 
-    for (i = 0; s[i] && i < n; i++) {
+    for (i = 0; s[i] && i < len; i++) {
         VGA_display_char(s[i]);
     }
 }
-
 void VGA_set_bg_color(char bg) {
     bg_color = bg;
 }

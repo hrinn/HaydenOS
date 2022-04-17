@@ -4,6 +4,7 @@
 #include "irq.h"
 #include "debug.h"
 #include "gdt.h"
+#include "serial.h"
 
 void print_welcome() {
     printk("Welcome to ");
@@ -24,12 +25,10 @@ void kmain() {
     TSS_init();
     VGA_clear();
     IRQ_init();
+    SER_init();
     keyboard_init();
 
-    print_welcome();
-
-    // Page fault
-    page_fault();
+    print_welcome();    
 
     while (1) asm("hlt");
 }

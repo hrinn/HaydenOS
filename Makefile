@@ -44,7 +44,7 @@ run_img: $(img)
 	@qemu-system-x86_64 -s -drive format=raw,file=$(img) 
 
 run_iso: $(iso)
-	@qemu-system-x86_64 -s -cdrom $(iso)
+	@qemu-system-x86_64 -s -cdrom $(iso) -serial stdio
 
 img: $(img)
 

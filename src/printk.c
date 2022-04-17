@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "vga.h"
 #include "string.h"
+#include "serial.h"
 
 #define FORMAT_BUFF 20
 
@@ -88,38 +89,39 @@ static void uitoa(uint64_t num, char *buffer, int base, bool caps) {
     strrev(buffer);
 }
 
+static inline void print(const char *buff, int len) {
+    VGA_display_str(buff, len);
+    SER_write(buff, len);
+}
+
 static inline void print_uchar(unsigned char u) {
-    VGA_display_char(u);
+    print((char *)&u, 1);
 }
 
 static inline void print_char(char c) {
-    VGA_display_char(c);
+    print(&c, 1);
 }
 
 static inline void print_str(const char *s) {
-    VGA_display_str(s);
-}
-
-static inline void print_strn(const char *s, int n) {
-    VGA_display_strn(s, n);
+    print(s, strlen(s));
 }
 
 static void print_int(int64_t i) {
     char buffer[FORMAT_BUFF];
     itoa(i, buffer, 10, false);
-    VGA_display_str(buffer);
+    print(buffer, FORMAT_BUFF);
 }
 
 static void print_uint(uint64_t u) {
     char buffer[FORMAT_BUFF];
     uitoa(u, buffer, 10, false);
-    VGA_display_str(buffer);
+    print(buffer, FORMAT_BUFF);
 }
 
 static void print_hex(uint64_t h, bool caps) {
     char buffer[FORMAT_BUFF];
     uitoa(h, buffer, 16, caps);
-    VGA_display_str(buffer);
+    print(buffer, FORMAT_BUFF);
 }
 
 
@@ -128,7 +130,7 @@ static void print_pointer(uint64_t p) {
     buffer[0] = '0';
     buffer[1] = 'x';
     uitoa(p, buffer + 2, 16, false);
-    VGA_display_str(buffer);
+    print(buffer, FORMAT_BUFF);
 }
 
 // Takes a format string, pointing to the % character
