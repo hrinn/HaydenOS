@@ -16,7 +16,6 @@
 
 // Function declarations
 void serial_isr(uint8_t irq, uint32_t error_code, void *arg);
-void TX_byte(uint8_t data);
 
 typedef enum {IDLE, BUSY} hw_status_t;
 
@@ -34,6 +33,11 @@ static state_t uart_state;
 void init_state(state_t *state) {
     state->head = &state->buff[0];
     state->tail = &state->buff[0];
+}
+
+// Writes a byte to the UART
+static inline void TX_byte(uint8_t data) {
+    outb(COM1, data);
 }
 
 // Consumes a char from the circular buffer
@@ -114,7 +118,7 @@ void init_hw_write(state_t *state) {
 
     state->status = BUSY;
     // Write up to 14 bytes the internal hardware buffer
-    while (i < HW_BUFF_SIZE && consumer_read(state));
+    while (i++ < HW_BUFF_SIZE && consumer_read(state));
     // We are either done or waiting for a TX empty interrupt
 }
 
@@ -156,9 +160,4 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
             // Bad news
             return;
     }
-}
-
-// Writes a byte to the serial device
-void TX_byte(uint8_t data) {
-    outb(COM1, data);
 }
