@@ -16,4 +16,7 @@ long_mode_start:
     mov rax, 0x2f472f4e2f4f2f4c
     mov qword [0xb8000], rax
 
+    ; mov the tag structure pointer into edi
+    ; mov edi, ebx
+
     call kmain

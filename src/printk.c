@@ -205,7 +205,7 @@ int printk(const char *fmt, ...) {
                 case 'd': // Signed integer
                     switch (info.length_specifier) {
                         case 'h': print_int((int16_t)va_arg(valist, int32_t));          break;
-                        case 'l': print_int(va_arg(valist, int32_t));                   break;
+                        case 'l': print_int(va_arg(valist, int64_t));                   break;
                         case 'q': print_int(va_arg(valist, int64_t));                   break;
                         case '\0': print_int(va_arg(valist, int32_t));                  break;
                     }     
@@ -213,7 +213,7 @@ int printk(const char *fmt, ...) {
                 case 'u': // Unsigned integer
                     switch (info.length_specifier) {
                         case 'h': print_uint((uint16_t)va_arg(valist, uint32_t));       break;
-                        case 'l': print_uint(va_arg(valist, uint32_t));                 break;
+                        case 'l': print_uint(va_arg(valist, uint64_t));                 break;
                         case 'q': print_uint(va_arg(valist, uint64_t));                 break;
                         case '\0': print_uint(va_arg(valist, uint32_t));                break;
                     }
@@ -221,7 +221,7 @@ int printk(const char *fmt, ...) {
                 case 'x': // Lowercase hex
                     switch (info.length_specifier) {
                         case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), false); break;
-                        case 'l': print_hex(va_arg(valist, uint32_t), false);           break;
+                        case 'l': print_hex(va_arg(valist, uint64_t), false);           break;
                         case 'q': print_hex(va_arg(valist, uint64_t), false);           break;
                         case '\0': print_hex(va_arg(valist, uint32_t), false);          break;
                     }
@@ -229,7 +229,7 @@ int printk(const char *fmt, ...) {
                 case 'X': // Uppercase hex
                     switch (info.length_specifier) {
                         case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), true);  break;
-                        case 'l': print_hex(va_arg(valist, uint32_t), true);            break;
+                        case 'l': print_hex(va_arg(valist, uint64_t), true);            break;
                         case 'q': print_hex(va_arg(valist, uint64_t), true);            break;
                         case '\0': print_hex(va_arg(valist, uint32_t), true);           break;
                     }

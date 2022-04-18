@@ -17,12 +17,15 @@ start:
     cli
     mov esp, stack_top
 
+    ; save multiboot information structure address
+    mov edi, ebx
+
     call check_multiboot
     call check_cpuid
     call check_long_mode
 
     call setup_page_tables
-    call enable_paging
+    call enable_paging    
 
     ; load the 64-bit GDT
     lgdt [gdt64.pointer]

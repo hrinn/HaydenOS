@@ -1,6 +1,6 @@
 LD := x86_64-elf-ld
 CC := x86_64-elf-gcc
-CFLAGS := -ffreestanding -Wall -Werror -pedantic -g -mno-red-zone
+CFLAGS := -ffreestanding -Wall -Werror -pedantic -mno-red-zone
 
 kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
@@ -35,7 +35,7 @@ clean_img:
 debug: CFLAGS+=-DDEBUG
 debug: run
 
-gdb: CFLAGS+=-DGDB
+gdb: CFLAGS+=-DGDB -g
 gdb: run
 
 run: run_iso

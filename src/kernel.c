@@ -5,30 +5,29 @@
 #include "debug.h"
 #include "gdt.h"
 #include "serial.h"
-
-void print_welcome() {
-    printk("Welcome to ");
-    VGA_set_fg_color(VGA_LIGHT_GREEN);
-    printk("HaydenOS\n");
-    VGA_set_fg_color(VGA_WHITE);
-}
+#include "mmu.h"
 
 void page_fault() {
     uint32_t *bad_addr = (uint32_t *)0xDEADBEEF;
     *bad_addr = 0;
 }
 
-void kmain() {
+void kmain(struct multiboot_info *multiboot_tags) {
     GDB_PAUSE; // set gdbp=1
     
+    // Remap GDT and initialize TSS
     GDT_remap();
     TSS_init();
-    VGA_clear();
+
+    // Enable interrupts and serial driver
     IRQ_init();
     SER_init();
-    keyboard_init();
 
-    print_welcome();    
+    VGA_clear();
+    printk("Hello, world!\n");
+
+    // Initialize memory management
+    parse_multiboot_tags(multiboot_tags);
 
     while (1) asm("hlt");
 }
