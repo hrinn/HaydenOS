@@ -29,5 +29,14 @@ void kmain(struct multiboot_info *multiboot_tags) {
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
 
+    void *page_addr;
+    int i;
+
+    // Stress test memory management
+    for (i = 0; i < 64; i++) {
+        page_addr = MMU_pf_alloc();
+        printk("Allocated new page at %p\n", page_addr);
+    }
+
     while (1) asm("hlt");
 }
