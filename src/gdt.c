@@ -1,7 +1,7 @@
 #include "gdt.h"
 #include <stdint.h>
 #include "string.h"
-#include "table_register.h"
+#include "registers.h"
 
 #define GDT_LIMIT 55
 #define TSS_OFFSET 0x28

@@ -1,7 +1,7 @@
 #include "irq.h"
 #include "isr_wrapper.h"
 #include "printk.h"
-#include "table_register.h"
+#include "registers.h"
 #include "ioport.h"
 #include "gdt.h"
 

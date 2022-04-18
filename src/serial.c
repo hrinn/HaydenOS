@@ -2,6 +2,7 @@
 #include "ioport.h"
 #include "irq.h"
 #include "printk.h"
+#include "registers.h"
 #include <stddef.h>
 #include <stdint.h>
 

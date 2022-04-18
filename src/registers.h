@@ -1,5 +1,5 @@
-#ifndef TABLE_REGISTER_H
-#define TABLE_REGISTER_H
+#ifndef REGISTERS_H
+#define REGISTERS_H
 
 #include <stdint.h>
 
@@ -29,5 +29,8 @@ static inline void lgdt(void *base, uint16_t size) {
 static inline void ltr(uint16_t offset) {
     asm ( "ltr %0" : : "m"(offset));
 }
+
+// Checks a bit set in the flags register
+extern uint16_t check_int(void);
 
 #endif
