@@ -134,6 +134,10 @@ void parse_mmap_tag(struct multiboot_mmap_tag *tag) {
             // Use memory to create a linked list of free memory regions
             mod_entry = (struct free_mem_region *)entry;
             mod_entry->end = entry->addr + entry->len;  // Change length to end address
+            if (mod_entry->start == 0x0) {
+                if (mod_entry->end <= PAGE_SIZE) continue;  // This is not a valid free region
+                mod_entry->start = PAGE_SIZE;   // Ensure free region doesn't start at 0x0
+            }
             mod_entry->next = NULL;  // This overwrites the multiboot type and zero fields
             append_free_mem_region(mod_entry);
         }
@@ -173,7 +177,6 @@ void parse_multiboot_tags(struct multiboot_info *multiboot_tags) {
     print_free_mem_regions();
 
     mmap.current_page = align_page(mmap.current_region->start);
-    if (mmap.current_page == 0) mmap.current_page = PAGE_SIZE;
     mmap.free_pool = NULL;
 }
 

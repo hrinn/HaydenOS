@@ -31,7 +31,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
 
-    void *pages[TESTN];
+    void *pages[TESTN * 2];
     int i;
 
 
@@ -48,7 +48,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     }
 
     // Allocate again
-    for (i = 0; i < TESTN; i++) {
+    for (i = 0; i < TESTN * 2; i++) {
         pages[i] = MMU_pf_alloc();
         printk("Allocated page: %p\n", pages[i]);
     }
