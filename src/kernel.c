@@ -6,12 +6,42 @@
 #include "gdt.h"
 #include "serial.h"
 #include "mmu.h"
+#include <stdbool.h>
 
-#define TESTN 8
+#define TESTN 6
 
 void page_fault() {
     uint32_t *bad_addr = (uint32_t *)0xDEADBEEF;
     *bad_addr = 0;
+}
+
+void fill_page(void *page) {
+    int i;
+    uint64_t *pg = (uint64_t *)page;
+
+    for (i = 0; i < PAGE_SIZE/8; i++) {
+        pg[i] = (uint64_t)page;
+    }
+}
+
+bool check_page(void *page) {
+    int i;
+    uint64_t *pg = (uint64_t *)page;
+    
+    for (i = 0; i < PAGE_SIZE / 8; i++) {
+        if (pg[i] != (uint64_t)page) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void print_page(void *page) {
+    int i;
+    uint64_t *pg = (uint64_t *)page;
+    for (i = 0; i < PAGE_SIZE / 8; i++) {
+        printk("%lx\n", pg[i]);
+    }
 }
 
 void kmain(struct multiboot_info *multiboot_tags) {
@@ -31,30 +61,28 @@ void kmain(struct multiboot_info *multiboot_tags) {
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
 
-    void *pages[TESTN * 2];
-    int i;
+    void *pages[TESTN];
+    int i, j;
+    void *page;
 
 
-    // Allocate pages
     for (i = 0; i < TESTN; i++) {
-        pages[i] = MMU_pf_alloc();
-        printk("Allocated page: %p\n", pages[i]);
+        for (j = 0; j < i; j++) {
+            pages[j] = MMU_pf_alloc();
+            printk("Allocated page %p\n", pages[j]);
+        }
+        for (j = i - 1; j >= 0; j--) {
+            printk("Freeing page %p\n", pages[j]);
+            MMU_pf_free(pages[j]);
+        }
     }
 
-    // Free them in reverse order
-    for (i = TESTN - 1; i >= 0; i--) {
-        printk("Freeing page %p\n", pages[i]);
-        MMU_pf_free(pages[i]);
+    printk("Allocating and writing pages until memory fills...\n");
+    while (1) {
+        page = MMU_pf_alloc();
+        fill_page(page);
+        if (!check_page(page)) printk("Contents of page %p could not be verified\n", page);
     }
-
-    // Allocate again
-    for (i = 0; i < TESTN * 2; i++) {
-        pages[i] = MMU_pf_alloc();
-        printk("Allocated page: %p\n", pages[i]);
-    }
-
-    printk("Allocating pages until memory fills...\n");
-    while (1) MMU_pf_alloc();
     
 
     while (1) asm("hlt");
