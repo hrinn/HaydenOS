@@ -406,5 +406,4 @@ void keyboard_handler(
 {
     char c = read_keyboard();
     if (c != '\0') printk("%c", c);
-    IRQ_end_of_interrupt(KEYBOARD_INT_LINE);
 }

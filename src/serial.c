@@ -156,6 +156,4 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
             inb(COM1 + 5);
             break;
     }
-
-    IRQ_end_of_interrupt(SERIAL_INT_LINE);
 }
