@@ -35,7 +35,7 @@ clean_img:
 debug: CFLAGS+=-DDEBUG
 debug: run
 
-gdb: CFLAGS+=-DGDB -Og -g
+gdb: CFLAGS+=-DGDB -g
 gdb: run
 
 release: CFLAGS+=-Os

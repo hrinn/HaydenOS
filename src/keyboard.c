@@ -190,7 +190,7 @@ int init_ps2_controller() {
 // Writes to the keyboard, waiting for ACK and resending if requested
 // Returns response
 uint8_t write_keyboard(uint8_t byte) {
-    uint8_t resp, tries = 0;
+    uint8_t resp = 0, tries = 0;
     do {
         write_data(byte);
         tries++;

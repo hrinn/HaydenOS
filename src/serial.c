@@ -87,7 +87,7 @@ int SER_init(void) {
 
     // Initialize UART
     outb(COM1 + 3, 0x80);   // Enable DLAB
-    outb(COM1 + 0, 0x01);   // Set divisor to 1 (full throttle)
+    outb(COM1 + 0, 0x03);   // 38400 BAUD
     outb(COM1 + 1, 0x00);   // ^
     outb(COM1 + 3, 0x03);   // 8 bits, no parity, 1 stop bit, disable DLAB
     outb(COM1 + 2, 0xC7);   // Enable and clear 14 byte FIFO
@@ -112,14 +112,12 @@ int is_tx_empty() {
 void init_hw_write(state_t *state) {
     int i = 0;
 
-    if (state->status != IDLE) {
-        while(!is_tx_empty());
-        state->status = IDLE;
+    if (state->status == IDLE) {
+        // Write up to 14 bytes the internal hardware buffer
+        while (i < HW_BUFF_SIZE && consumer_read(state)) i++;
+        if (i > 0) state->status = BUSY;
     }
-
-    state->status = BUSY;
-    // Write up to 14 bytes the internal hardware buffer
-    while (i++ < HW_BUFF_SIZE && consumer_read(state));
+    
     // We are either done or waiting for a TX empty interrupt
 }
 
@@ -157,8 +155,7 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
         case IIR_LINE_STATUS:   // Read line status register
             inb(COM1 + 5);
             break;
-        default:
-            // Bad news
-            return;
     }
+
+    IRQ_end_of_interrupt(SERIAL_INT_LINE);
 }

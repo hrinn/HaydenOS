@@ -106,6 +106,10 @@ static inline void print_str(const char *s) {
     print(s, strlen(s));
 }
 
+static inline void print_strn(const char *s, int len) {
+    print(s, len);
+}
+
 static void print_int(int64_t i) {
     char buffer[FORMAT_BUFF];
     itoa(i, buffer, 10, false);
@@ -186,18 +190,28 @@ static bool check_format_spec(const char *fmt, struct format_info *info) {
 // Like printf, but in the kernel
 int printk(const char *fmt, ...) {
     va_list valist;
-    int i = 0;
+    int start = 0, end = 0;
     struct format_info info;
+    bool format_flag, end_flag;
 
     if (fmt == NULL) return -1;
     va_start(valist, fmt);
 
-    while (fmt[i]) {
+    do {
         info.length = 0;
         info.format_specifier = '\0';
         info.length_specifier = '\0';
+        format_flag = false;
+        end_flag = false;
 
-        if (check_format_spec(fmt + i, &info)) {
+        end_flag = (fmt[end] == '\0');
+        format_flag = check_format_spec(fmt + end, &info);
+
+        if (end_flag || format_flag) {
+            print_strn(fmt + start, end - start);
+        }
+
+        if (format_flag) {
             switch (info.format_specifier) {
                 case '%': // Percent
                     print_char('%');
@@ -246,11 +260,10 @@ int printk(const char *fmt, ...) {
                 default: // Invalid specifier
                     return -1;
             }
-            i += info.length;
-        } else {
-            print_char(fmt[i++]);
+            end += info.length;
+            start = end--;
         }
-    }
+    } while (fmt[end++]);
 
     va_end(valist);
 
