@@ -185,18 +185,33 @@ static inline bool range_contains_addr(uint64_t addr, uint64_t start, uint64_t e
     return ((addr - start) < (end - start));
 }
 
+void push_free_pool_entry(struct free_pool_node *entry) {
+    if (mmap.free_pool == NULL) {
+        mmap.free_pool = entry;
+    } else {
+        entry->next = mmap.free_pool;
+        mmap.free_pool = entry;
+    }
+}
+
+struct free_pool_node *pop_free_pool_entry() {
+    struct free_pool_node *res;
+    if (mmap.free_pool == NULL) return NULL;
+    res = mmap.free_pool;
+    mmap.free_pool = mmap.free_pool->next;
+    return res;
+}
+
 // Returns an address to a free page frame
 // This may not be robust enough
 void *MMU_pf_alloc(void) {
     uint64_t page;
+    struct free_pool_node *node;
     bool page_valid;
 
     // Check the free pool linked list first
-    if (mmap.free_pool != NULL) {
-        // Get head of free pool's address
-        page = (uint64_t)mmap.free_pool;
-        mmap.free_pool = mmap.free_pool->next;
-        return (void *)page;
+    if ((node = pop_free_pool_entry()) != NULL) {
+        return (void *)node;
     }
 
     page_valid = false;
@@ -231,19 +246,6 @@ void *MMU_pf_alloc(void) {
     return (void *)page;
 }
 
-void append_free_pool_entry(struct free_pool_node *entry) {
-    struct free_pool_node *current;
-
-    if (mmap.free_pool == NULL) {
-        mmap.free_pool = entry;
-    } else {
-        // Find end of entry list
-        current = mmap.free_pool;
-        while (current->next) current = current->next;
-        current->next = entry;
-    }
-}
-
 // Frees the page frame associated with the address pf
 void MMU_pf_free(void *pf) {
     uint64_t page_frame = (uint64_t)pf & ~(PAGE_SIZE - 1);
@@ -254,5 +256,5 @@ void MMU_pf_free(void *pf) {
     entry->next = NULL;
 
     // Add free pool entry to the linked list
-    append_free_pool_entry(entry);
+    push_free_pool_entry(entry);
 }

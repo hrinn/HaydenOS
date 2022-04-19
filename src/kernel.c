@@ -71,7 +71,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
             pages[j] = MMU_pf_alloc();
             printk("Allocated page %p\n", pages[j]);
         }
-        for (j = i - 1; j >= 0; j--) {
+        for (j = 0; j < i; j++) {
             printk("Freeing page %p\n", pages[j]);
             MMU_pf_free(pages[j]);
         }

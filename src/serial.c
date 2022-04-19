@@ -87,7 +87,7 @@ int SER_init(void) {
 
     // Initialize UART
     outb(COM1 + 3, 0x80);   // Enable DLAB
-    outb(COM1 + 0, 0x03);   // 38400 BAUD
+    outb(COM1 + 0, 0x01);   // 112500 baud
     outb(COM1 + 1, 0x00);   // ^
     outb(COM1 + 3, 0x03);   // 8 bits, no parity, 1 stop bit, disable DLAB
     outb(COM1 + 2, 0xC7);   // Enable and clear 14 byte FIFO
