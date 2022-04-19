@@ -72,9 +72,9 @@ typedef struct {
     tss_descriptor_t tss_descriptor;
 } __attribute__((packed)) gdt_t;
 
-typedef struct {
+typedef struct stack {
     uint8_t d[STACK_SIZE];
-} __attribute__((aligned(STACK_SIZE))) stack_t;
+} __attribute__((aligned(16))) stack_t;
 
 static tss_t tss;
 static gdt_t gdt;
@@ -97,9 +97,9 @@ void TSS_init() {
     uint64_t tss_addr = (uint64_t)&tss;
 
     // Initialize TSS
-    tss.ist[0] = (uint64_t)(&stack1 + STACK_SIZE);
-    tss.ist[1] = (uint64_t)(&stack2 + STACK_SIZE);
-    tss.ist[2] = (uint64_t)(&stack3 + STACK_SIZE);
+    tss.ist[0] = (uint64_t)(((stack_t *)&stack1) + 1);
+    tss.ist[1] = (uint64_t)(((stack_t *)&stack2) + 1);
+    tss.ist[2] = (uint64_t)(((stack_t *)&stack3) + 1);
 
     // Initialize TSS descriptor
     gdt.tss_descriptor.limit_15_0 = tss_limit & 0xFFFF;

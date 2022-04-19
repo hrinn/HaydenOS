@@ -182,13 +182,14 @@ void parse_multiboot_tags(struct multiboot_info *multiboot_tags) {
 
 // Returns true if the address is within the range
 static inline bool range_contains_addr(uint64_t addr, uint64_t start, uint64_t end) {
-    return addr >= start && addr < end;
+    return ((addr - start) < (end - start));
 }
 
 // Returns an address to a free page frame
 // This may not be robust enough
 void *MMU_pf_alloc(void) {
     uint64_t page;
+    bool page_valid;
 
     // Check the free pool linked list first
     if (mmap.free_pool != NULL) {
@@ -198,28 +199,31 @@ void *MMU_pf_alloc(void) {
         return (void *)page;
     }
 
-    // Resort to physical memory map
-    // Check if current page is outside of current free memory region
-    if (!range_contains_addr(mmap.current_page, mmap.current_region->start, mmap.current_region->end)) {
-        // We have exhausted the pages within the current memory region.
-        if (mmap.current_region->next == NULL) {
-            printk("ERROR: NO PHYSICAL MEMORY REMAINING!\n");
-            while (1) asm("hlt");
+    page_valid = false;
+    while (!page_valid) {
+        if (!range_contains_addr(mmap.current_page, mmap.current_region->start, mmap.current_region->end)) {
+            // Page is outside of current memory region
+            if (mmap.current_region->next == NULL) {
+                printk("ERROR: NO PHYSICAL MEMORY REMAINING!\n");
+                while (1) asm("hlt");
+            }
+            // Set current free entry to next
+            mmap.current_region = mmap.current_region->next;
+            mmap.current_page = align_page(mmap.current_region->start);
+        } 
+        
+        if (range_contains_addr(mmap.current_page, mmap.kernel_start, mmap.kernel_end)) {
+            // Page is inside of kernel
+            mmap.current_page = align_page(mmap.kernel_end);
+            continue; // Recheck address
         }
-        // Set current free entry to next
-        mmap.current_region = mmap.current_region->next;
-        mmap.current_page = align_page(mmap.current_region->start);
-    }
+        
+        if (range_contains_addr(mmap.current_page, mmap.multiboot_start, mmap.multiboot_end)) {
+            mmap.current_page = align_page(mmap.multiboot_end);
+            continue; // Recheck address
+        }
 
-    // Check if current page is inside of kernel
-    if (range_contains_addr(mmap.current_page, mmap.kernel_start, mmap.kernel_end)) {
-        // We have ended up inside of our kernel
-        mmap.current_page = align_page(mmap.kernel_end);
-    }
-
-    // Check if current page is inside of multiboot region
-    if (range_contains_addr(mmap.current_page, mmap.multiboot_start, mmap.multiboot_end)) {
-        mmap.current_page = align_page(mmap.kernel_end);
+        page_valid = true;
     }
 
     page = mmap.current_page;
