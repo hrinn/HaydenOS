@@ -1,5 +1,5 @@
 #include "keyboard.h"
-#include <stdint.h>
+#include <stdint-gcc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include "printk.h"

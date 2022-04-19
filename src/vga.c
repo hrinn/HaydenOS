@@ -1,9 +1,8 @@
 #include "vga.h"
-#include <stdint.h>
+#include <stdint-gcc.h>
 #include <stddef.h>
 #include "string.h"
 #include "irq.h"
-#include "registers.h"
 
 #define VGA_ADDR 0xb8000
 #define VGA_WIDTH 80

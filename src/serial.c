@@ -4,10 +4,10 @@
 #include "printk.h"
 #include "registers.h"
 #include <stddef.h>
-#include <stdint.h>
+#include <stdint-gcc.h>
 
 #define COM1 0x3F8
-#define BUFF_SIZE 16
+#define BUFF_SIZE 256
 #define HW_BUFF_SIZE 14
 #define SERIAL_IRQ 36
 #define SERIAL_INT_LINE 4

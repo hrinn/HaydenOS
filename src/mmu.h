@@ -1,7 +1,7 @@
 #ifndef MMU_H
 #define MMU_H
 
-#include <stdint.h>
+#include <stdint-gcc.h>
 
 #define PAGE_SIZE 4096
 

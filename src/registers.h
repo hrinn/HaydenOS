@@ -1,7 +1,7 @@
 #ifndef REGISTERS_H
 #define REGISTERS_H
 
-#include <stdint.h>
+#include <stdint-gcc.h>
 
 typedef struct {
     uint16_t limit;
@@ -29,8 +29,5 @@ static inline void lgdt(void *base, uint16_t size) {
 static inline void ltr(uint16_t offset) {
     asm ( "ltr %0" : : "m"(offset));
 }
-
-// Checks a bit set in the flags register
-extern uint16_t check_int(void);
 
 #endif

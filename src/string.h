@@ -2,7 +2,7 @@
 #define STRING_H
 
 #include <stddef.h>
-#include <stdint.h>
+#include <stdint-gcc.h>
 
 void *memset(void *dest, uint8_t c, size_t n);
 void *memcpy(void *dest, const void *src, size_t n);

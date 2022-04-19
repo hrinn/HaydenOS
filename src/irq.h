@@ -1,7 +1,8 @@
 #ifndef IRQ_H
 #define IRQ_H
 
-#include <stdint.h>
+#include <stdint-gcc.h>
+#include "registers.h"
 
 typedef void (*irq_handler_t)(uint8_t irq, uint32_t error_code, void *arg);
 
@@ -16,6 +17,8 @@ uint8_t IRQ_get_mask(uint8_t irq_line);
 void IRQ_end_of_interrupt(uint8_t irq_line);
 
 // Assembly helpers
+extern uint16_t check_int(void);
+
 static inline void cli() {
     asm volatile ("cli");
 }

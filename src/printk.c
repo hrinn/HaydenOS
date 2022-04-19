@@ -1,7 +1,7 @@
 #include "printk.h"
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdint.h>
+#include <stdint-gcc.h>
 #include <stdbool.h>
 #include "vga.h"
 #include "string.h"

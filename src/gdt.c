@@ -1,5 +1,5 @@
 #include "gdt.h"
-#include <stdint.h>
+#include <stdint-gcc.h>
 #include "string.h"
 #include "registers.h"
 
