@@ -14,6 +14,7 @@ void IRQ_set_handler(uint8_t irq, irq_handler_t handler, void *arg);
 void IRQ_set_mask(uint8_t irq_line);
 void IRQ_clear_mask(uint8_t irq_line);
 uint8_t IRQ_get_mask(uint8_t irq_line);
+void IRQ_end_of_interrupt(uint8_t irq_line);
 
 // Assembly helpers
 extern uint16_t check_int(void);

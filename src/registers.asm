@@ -1,5 +1,5 @@
 global check_int
-global ltr
+global load_cr3
 
 section .text
 bits 64
@@ -9,3 +9,7 @@ check_int:
     popf            ; pop the flags register from the stack
     and ax, 0x200   ; mask out interrupt flag
     ret
+
+; load_cr3:
+;     mov cr3, rdi
+;     ret

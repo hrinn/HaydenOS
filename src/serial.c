@@ -7,7 +7,7 @@
 #include <stdint-gcc.h>
 
 #define COM1 0x3F8
-#define BUFF_SIZE 256
+#define BUFF_SIZE 128
 #define HW_BUFF_SIZE 14
 #define SERIAL_IRQ 36
 #define SERIAL_INT_LINE 4
@@ -156,4 +156,5 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
             inb(COM1 + 5);
             break;
     }
+    IRQ_end_of_interrupt(SERIAL_INT_LINE);
 }

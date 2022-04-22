@@ -30,4 +30,20 @@ static inline void ltr(uint16_t offset) {
     asm ( "ltr %0" : : "m"(offset));
 }
 
+static inline uint64_t get_cr3() {
+    uint64_t res;
+    asm ( "movq %%cr3, %0" : "=r"(res));
+    return res;
+}
+
+static inline void set_cr3(uint64_t data) {
+    asm ( "movq %0, %%cr3" : : "r"(data));
+}
+
+static inline uint64_t get_cr2() {
+    uint64_t res;
+    asm ( "movq %%cr2, %0" : "=r"(res));
+    return res;
+}
+
 #endif

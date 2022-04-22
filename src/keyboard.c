@@ -225,9 +225,6 @@ int init_ps2_keyboard() {
         return -4;
     }
 
-    // Register keyboard interrupt handler
-    
-
     // Enable keyboard scanning
     DEBUG_PRINT("Enabling keyboard scanning\n");
     if (write_keyboard(CMD_ENABLE_SCAN) != KEYB_ACK)  {
@@ -406,4 +403,5 @@ void keyboard_handler(
 {
     char c = read_keyboard();
     if (c != '\0') printk("%c", c);
+    IRQ_end_of_interrupt(KEYBOARD_INT_LINE);
 }

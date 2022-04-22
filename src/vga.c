@@ -4,7 +4,7 @@
 #include "string.h"
 #include "irq.h"
 
-#define VGA_ADDR 0xb8000
+#define VGA_ADDR 0xB8000
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define TAB_WIDTH 4

@@ -77,7 +77,6 @@ char *irq_name_table[32] = {
 void irq_handler(uint8_t irq, uint32_t error_code) {
     if (irq_handler_table[irq].handler) {
         irq_handler_table[irq].handler(irq, error_code, irq_handler_table[irq].arg);
-        if (irq >= PIC_START && irq <= PIC_END) IRQ_end_of_interrupt(irq - PIC_START);
     } else {
         // No entry set for this irq
         printk("Unhandled Interrupt %d (%s)\n", 
