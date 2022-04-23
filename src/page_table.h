@@ -8,13 +8,16 @@
 // Entry flag positions
 #define PAGE_PRESENT 0x1
 #define PAGE_WRITABLE 0x2
-#define PAGE_USER_ACCESS 0x3
-#define PAGE_NO_EXECUTE 0x80000000
+#define PAGE_USER_ACCESS 0x4
+#define PAGE_NO_EXECUTE 0x8000000000000000
 
 // PML4 entries
 #define PML4_IDENTITY_MAP 0
 #define PAGE_OFFSET 12
 #define VGA_ADDR 0xB8000
+
+// Offsets in Virtual Address Space
+#define KERNEL_TEXT_START 0xFFFF800000000000
 
 typedef struct page_table_entry {
     uint64_t present : 1;

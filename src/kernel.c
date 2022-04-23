@@ -34,11 +34,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     parse_multiboot_tags(multiboot_tags);
     setup_pml4();
 
-    printk("Am I alive?\n");
-
-    // Null pages shouldn't work now
-    uint64_t *null = 0;
-    printk("%ld\n", *null);
+    printk("Still alive!\n");
 
     while (1) asm("hlt");
 }

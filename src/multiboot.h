@@ -8,6 +8,9 @@
 #define MULTIBOOT_TAG_TYPE_END 0
 #define MMAP_ENTRY_FREE_TYPE 1
 
+#define ELF_WRITE_FLAG 0x1
+#define ELF_EXEC_FLAG 0x4
+
 // Structures to parse the multiboot tags
 struct multiboot_info {
     uint32_t total_size;

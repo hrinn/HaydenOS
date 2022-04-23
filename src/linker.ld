@@ -3,14 +3,35 @@ ENTRY(start)
 SECTIONS {
     . = 1M;
 
-    .boot :
+    .rodata :
     {
         /* ensure that the multiboot header is at the beginning */
-        *(.multiboot_header)
+        KEEP(*(.multiboot_header))
+        *(.rodata .rodata.*)
+        . = ALIGN(4K);
+    }
+
+    .eh_frame :
+    {
+        *(.eh_frame .eh_frame.*)
+        . = ALIGN(4K);
     }
 
     .text :
     {
-        *(.text)
+        *(.text .text.*)
+        . = ALIGN(4K);
+    }
+
+    .data :
+    {
+        *(.data .data.*)
+        . = ALIGN(4K);
+    }
+
+    .bss :
+    {
+        *(.bss .bss.*)
+        . = ALIGN(4K);
     }
 }

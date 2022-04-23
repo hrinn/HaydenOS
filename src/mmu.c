@@ -10,6 +10,8 @@
 
 #define PAGE_FAULT_IRQ 14
 
+extern void enable_no_execute(void);
+
 // Structure to keep track of page frames
 struct free_mem_region {
     physical_addr_t start;
@@ -30,13 +32,11 @@ typedef struct mmap {
     physical_addr_t current_page;
     struct free_pool_node *free_pool;
     int allocated_pages;
+    struct multiboot_elf_tag *elf_tag;
 } memory_map_t;
 
 // Physical memory map information
 static memory_map_t mmap;
-
-// Kernel's PML4 Table
-// static page_table_t *pml4_table;
 
 static inline uint32_t align_size(uint32_t size) {
     return (size + 7) & ~7;
@@ -59,6 +59,8 @@ void parse_elf_tag(struct multiboot_elf_tag *tag) {
             }
         }
     }
+
+    mmap.elf_tag = tag;
 }
 
 void append_free_mem_region(struct free_mem_region *entry) {
@@ -253,13 +255,13 @@ typedef struct {
     uint64_t sign_extension : 16;
 } __attribute__((packed)) pt_index_t;
 
-void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys_addr) {
+void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
     pt_index_t *i;
     i = (pt_index_t *)&virt_addr;
     page_table_t *pdp, *pd, *pt;
+    uint64_t *pt_entry;
 
     if (!pml4->table[i->pml4_index].present) {
-        printk("Allocated PDP at PML4[%d]\n", i->pml4_index);
         pml4->table[i->pml4_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
         pml4->table[i->pml4_index].present = 1;
     }
@@ -278,23 +280,25 @@ void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys
     }
     pt = entry_to_table(pd, i->pd_index);
 
-    pt->table[i->pt_index].base_addr = phys_addr >> PAGE_OFFSET;
-    pt->table[i->pt_index].present = 1;
-    pt->table[i->pt_index].writable = 1;
+    pt_entry = (uint64_t *)&pt->table[i->pt_index];
+    *pt_entry = phys_addr | PAGE_PRESENT | flags;
 }
 
 void identity_map(page_table_t *pml4, physical_addr_t start, physical_addr_t end) {
+    printk("Identity mapped region: 0x%lx - 0x%lx\n", start, end);
     for ( ; start < end; start += PAGE_SIZE) {
-        map_page(pml4, start, start);
+        map_page(pml4, start, start, PAGE_WRITABLE);
     }
 }
 
-void map_range(page_table_t *pml4, physical_addr_t start, physical_addr_t end, virtual_addr_t offset) {
+void map_range(page_table_t *pml4, physical_addr_t start, physical_addr_t end, 
+    virtual_addr_t offset, uint64_t flags) 
+{
     virtual_addr_t vcurrent, size = end - start;
     physical_addr_t pcurrent = start;
 
     for (vcurrent = offset; vcurrent < offset + size; vcurrent += PAGE_SIZE) {
-        map_page(pml4, vcurrent, pcurrent);        
+        map_page(pml4, vcurrent, pcurrent, flags);        
         pcurrent += PAGE_SIZE;
     }
 }
@@ -339,6 +343,38 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
 //     }
 // }
 
+char *get_elf_section_name(int section_name_index) {
+    struct elf_section_header *strtab_header;
+    char *strtab;
+
+    strtab_header = ((struct elf_section_header *)(mmap.elf_tag + 1)) + mmap.elf_tag->string_table_index;
+    strtab = (char *)strtab_header->segment_address;
+
+    return strtab + section_name_index;
+}
+
+void remap_elf_sections(page_table_t *pml4) {
+    struct elf_section_header *current;
+    uint64_t flags;
+
+    for (current = (struct elf_section_header *)(mmap.elf_tag + 1);
+        (uint8_t *)current < (uint8_t *)mmap.elf_tag + mmap.elf_tag->size;
+        current++)
+    {
+        if (current->segment_size != 0) {
+            flags = 0;
+            // Set page flags based on type of elf section
+            if (current->type & ELF_WRITE_FLAG) flags |= PAGE_WRITABLE;
+            if (!(current->type & ELF_EXEC_FLAG)) flags |= PAGE_NO_EXECUTE;
+
+            map_range(pml4, current->segment_address, current->segment_address + current->segment_size, 
+                KERNEL_TEXT_START, flags);
+            printk("Mapped %s: 0x%lx -> 0x%lx\n", get_elf_section_name(current->section_name_index),
+                current->segment_address, current->segment_address + KERNEL_TEXT_START);
+        }
+    }
+ }
+
 void setup_pml4() {
     struct free_mem_region *region = mmap.current_region;
     page_table_t *pml4 = allocate_table();
@@ -347,6 +383,9 @@ void setup_pml4() {
     // Register page fault handler
     IRQ_set_handler(PAGE_FAULT_IRQ, page_fault_handler, NULL);
 
+    // Enable no execute flag in EFER
+    enable_no_execute();
+
     // Identity map our physical memory
     while (region != NULL) {
         identity_map(pml4, region->start, region->end);
@@ -354,8 +393,14 @@ void setup_pml4() {
     }
 
     // Identity map VGA address
-    map_page(pml4, VGA_ADDR, VGA_ADDR);
+    map_page(pml4, VGA_ADDR, VGA_ADDR, PAGE_WRITABLE | PAGE_NO_EXECUTE);
 
+    // Map ELF sections into kernel text region
+    remap_elf_sections(pml4);
+
+    // Allocate stacks
+
+    printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);
 }
 

@@ -1,5 +1,5 @@
 global check_int
-global load_cr3
+global enable_no_execute
 
 section .text
 bits 64
@@ -10,6 +10,9 @@ check_int:
     and ax, 0x200   ; mask out interrupt flag
     ret
 
-; load_cr3:
-;     mov cr3, rdi
-;     ret
+enable_no_execute:
+    mov rcx, 0xC0000080
+    rdmsr
+    or rax, 1 << 11
+    wrmsr
+    ret
