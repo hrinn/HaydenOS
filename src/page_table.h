@@ -18,6 +18,9 @@
 
 // Offsets in Virtual Address Space
 #define KERNEL_TEXT_START 0xFFFF800000000000
+#define KERNEL_STACKS_START 0xFFFFFF0000000000
+
+#define STACK_SIZE 4096 * 2
 
 typedef struct page_table_entry {
     uint64_t present : 1;
@@ -39,6 +42,6 @@ typedef struct page_table {
     pt_entry_t table[NUM_ENTRIES];
 } __attribute__((packed)) page_table_t;
 
-void setup_pml4(void);
+physical_addr_t setup_pml4(void);
 
 #endif

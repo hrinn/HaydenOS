@@ -373,10 +373,26 @@ void remap_elf_sections(page_table_t *pml4) {
                 current->segment_address, current->segment_address + KERNEL_TEXT_START);
         }
     }
- }
+}
 
-void setup_pml4() {
+// Creates a stack in the virtual address space of specified size
+// Returns the address of the top of the stack
+virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t bottom) {
+    int i;
+    physical_addr_t paddr;
+
+    printk("Allocating stack, top at 0x%lx\n", bottom + STACK_SIZE);
+    for (i = 0; i < STACK_SIZE; i+=PAGE_SIZE) {
+        paddr = MMU_pf_alloc();
+        map_page(pml4, bottom + i, paddr, PAGE_NO_EXECUTE);
+    }
+
+    return i;
+}
+
+virtual_addr_t setup_pml4() {
     struct free_mem_region *region = mmap.current_region;
+    physical_addr_t new_stack;
     page_table_t *pml4 = allocate_table();
     printk("Created PML4 at physical address %p\n", (void *)pml4);
 
@@ -398,9 +414,11 @@ void setup_pml4() {
     // Map ELF sections into kernel text region
     remap_elf_sections(pml4);
 
-    // Allocate stacks
+    // Create stack
+    new_stack = map_stack(pml4, KERNEL_STACKS_START);
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);
+    return new_stack;
 }
 

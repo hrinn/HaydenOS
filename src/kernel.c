@@ -17,6 +17,7 @@ void page_fault() {
 }
 
 void kmain(struct multiboot_info *multiboot_tags) {
+    virtual_addr_t new_stack;
     GDB_PAUSE; // set gdbp=1
     
     // Remap GDT and initialize TSS
@@ -32,9 +33,11 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
-    setup_pml4();
+    new_stack = setup_pml4();
 
-    printk("Still alive!\n");
+    // Switch to stack at new stack
+    // set rsp (maybe rbp?)
+    // jump up by kernel text offset
 
     while (1) asm("hlt");
 }
