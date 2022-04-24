@@ -81,6 +81,7 @@ void irq_handler(uint8_t irq, uint32_t error_code) {
         // No entry set for this irq
         printk("Unhandled Interrupt %d (%s)\n", 
             irq, irq < 32 ? irq_name_table[irq] : "External/Trap");
+        sti();
         while (1) asm("hlt");
     }
 }

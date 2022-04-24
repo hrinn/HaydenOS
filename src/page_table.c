@@ -192,11 +192,12 @@ void remap_elf_sections(page_table_t *pml4) {
 // Returns the address of the top of the stack
 virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t vbottom, physical_addr_t pbottom) {
     virtual_addr_t vcurrent;
+    physical_addr_t pcurrent = pbottom;
 
     // Leave room for a guard page
     for (vcurrent = vbottom + PAGE_SIZE; vcurrent < vbottom + GUARD_STACK_SIZE; vcurrent += PAGE_SIZE) {
-        map_page(pml4, vcurrent, pbottom, PAGE_NO_EXECUTE | PAGE_WRITABLE);
-        pbottom += PAGE_SIZE;
+        map_page(pml4, vcurrent, pcurrent, PAGE_NO_EXECUTE | PAGE_WRITABLE);
+        pcurrent += PAGE_SIZE;
     }
 
     printk("Mapped stack, top at 0x%lx\n", vcurrent);
@@ -230,9 +231,9 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
 
     // Map main stack and IST stacks
     stack_addresses[0] = map_stack(pml4, KERNEL_STACKS_START, (physical_addr_t)&stack_bottom);
-    // stack_addresses[1] = map_stack(pml4, KERNEL_STACKS_START + stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
-    // stack_addresses[2] = map_stack(pml4, KERNEL_STACKS_START + stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
-    // stack_addresses[3] = map_stack(pml4, KERNEL_STACKS_START + stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
+    // stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
+    // stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
+    // stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);

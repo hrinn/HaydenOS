@@ -46,6 +46,7 @@ void kmain_stage2() {
     cleanup_old_virtual_space();
     // TODO: setup new TSS stacks and free old ones
     printk("Executing in kernel space\n");
+    asm ("int3");
 
     while (1) asm("hlt");
 }
