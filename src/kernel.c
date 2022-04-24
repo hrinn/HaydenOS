@@ -9,15 +9,12 @@
 #include "page_table.h"
 #include "multiboot.h"
 
-#define TESTN 6
+void kmain_stage2(void);
 
-void page_fault() {
-    uint32_t *bad_addr = (uint32_t *)0xDEADBEEF;
-    *bad_addr = 0;
-}
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-arith"
 void kmain(struct multiboot_info *multiboot_tags) {
-    virtual_addr_t new_stack;
+    virtual_addr_t stack_addresses[4];
     GDB_PAUSE; // set gdbp=1
     
     // Remap GDT and initialize TSS
@@ -33,11 +30,22 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
-    new_stack = setup_pml4();
+    setup_pml4(stack_addresses);
 
-    // Switch to stack at new stack
-    // set rsp (maybe rbp?)
-    // jump up by kernel text offset
+    // Remap TSS stack addresses
+    // TSS_remap(stack_addresses + 1, 3);
+
+    // Switch execution to kernel space
+    asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
+    (kmain_stage2 + KERNEL_TEXT_START)();
+}
+#pragma GCC diagnostic pop
+
+void kmain_stage2() {
+    apply_idt_offset(KERNEL_TEXT_START);
+    cleanup_old_virtual_space();
+    // TODO: setup new TSS stacks and free old ones
+    printk("Executing in kernel space\n");
 
     while (1) asm("hlt");
 }

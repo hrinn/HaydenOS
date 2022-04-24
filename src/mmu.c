@@ -5,147 +5,9 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "string.h"
-#include "registers.h"
-#include "irq.h"
-
-#define PAGE_FAULT_IRQ 14
-
-extern void enable_no_execute(void);
-
-// Structure to keep track of page frames
-struct free_mem_region {
-    physical_addr_t start;
-    physical_addr_t end;
-    struct free_mem_region *next;
-};
-
-struct free_pool_node {
-    struct free_pool_node *next;
-};
-
-typedef struct mmap {
-    physical_addr_t kernel_start;
-    physical_addr_t kernel_end;
-    physical_addr_t multiboot_start;
-    physical_addr_t multiboot_end;
-    struct free_mem_region *current_region;
-    physical_addr_t current_page;
-    struct free_pool_node *free_pool;
-    int allocated_pages;
-    struct multiboot_elf_tag *elf_tag;
-} memory_map_t;
 
 // Physical memory map information
-static memory_map_t mmap;
-
-static inline uint32_t align_size(uint32_t size) {
-    return (size + 7) & ~7;
-}
-
-void parse_elf_tag(struct multiboot_elf_tag *tag) {
-    struct elf_section_header *header;
-
-    for (header = (struct elf_section_header *)(tag + 1);
-        (uint8_t *)header < (uint8_t *)tag + tag->size;
-        header++)
-    {
-        // Compute min start and max end address of kernel's ELF sections
-        if (header->segment_size != 0) {
-            if (header->segment_address < mmap.kernel_start) {
-                mmap.kernel_start = header->segment_address;
-            }
-            if (header->segment_address + header->segment_size > mmap.kernel_end) {
-                mmap.kernel_end = header->segment_address + header->segment_size;
-            }
-        }
-    }
-
-    mmap.elf_tag = tag;
-}
-
-void append_free_mem_region(struct free_mem_region *entry) {
-    struct free_mem_region *current;
-
-    if (mmap.current_region == NULL) {
-        mmap.current_region = entry;
-    } else {
-        // Find end of linked list
-        current = mmap.current_region;
-        while (current->next) current = current->next;
-        current->next = entry;
-    }
-}
-
-void print_free_mem_regions() {
-    struct free_mem_region *current = mmap.current_region;
-
-    while (current) {
-        printk("Free memory start: 0x%lx, end 0x%lx, len: %ldKB\n", 
-            current->start, current->end, (current->end - current->start)/1024);
-        current = current->next;
-    }
-}
-
-void parse_mmap_tag(struct multiboot_mmap_tag *tag) {
-    struct multiboot_mmap_entry *entry;
-    struct free_mem_region *mod_entry;
-    mmap.kernel_start = 0xFFFFFFFFFFFFFFFF;
-    mmap.kernel_end = 0;
-
-    for (entry = (struct multiboot_mmap_entry *)(tag + 1);
-        (uint8_t *)entry < (uint8_t *)tag + tag->size;
-        entry++)
-    {
-        if (entry->type == MMAP_ENTRY_FREE_TYPE) {            
-            // Manipulate entry to our advantage.
-            // Use memory to create a linked list of free memory regions
-            mod_entry = (struct free_mem_region *)entry;
-            mod_entry->end = entry->addr + entry->len;  // Change length to end address
-            if (mod_entry->start == 0x0) {
-                if (mod_entry->end <= PAGE_SIZE) continue;  // This is not a valid free region
-                mod_entry->start = PAGE_SIZE;   // Ensure free region doesn't start at 0x0
-            }
-            mod_entry->next = NULL;  // This overwrites the multiboot type and zero fields
-            append_free_mem_region(mod_entry);
-        }
-    }
-}
-
-static inline uint64_t align_page(uint64_t addr) {
-    return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-}
-
-void parse_multiboot_tags(struct multiboot_info *multiboot_tags) {
-    struct multiboot_tag *tag;
-
-    mmap.multiboot_start = (uint64_t)multiboot_tags;
-    mmap.multiboot_end = mmap.multiboot_start + multiboot_tags->total_size;
-
-    for (tag = (struct multiboot_tag *)(multiboot_tags + 1);
-        tag->type != MULTIBOOT_TAG_TYPE_END;
-        tag = (struct multiboot_tag *)((uint8_t *)tag + align_size(tag->size)))
-    {
-        switch(tag->type) {
-            case MULTIBOOT_TAG_TYPE_ELF: 
-                parse_elf_tag((struct multiboot_elf_tag *)tag);
-                break;
-            case MULTIBOOT_TAG_TYPE_MMAP:
-                parse_mmap_tag((struct multiboot_mmap_tag *)tag);
-                break;
-            default: break;
-        }
-    }
-
-    // Print gathered information
-    printk("Kernel start: 0x%lx, end: 0x%lx, len: %ldKB\n", 
-        mmap.kernel_start, mmap.kernel_end, (mmap.kernel_end - mmap.kernel_start)/1024);
-    printk("Multiboot start: 0x%lx, end: 0x%lx, len: %ldB\n", 
-        mmap.multiboot_start, mmap.multiboot_end, mmap.multiboot_end - mmap.multiboot_start);
-    print_free_mem_regions();
-
-    mmap.current_page = align_page(mmap.current_region->start);
-    mmap.free_pool = NULL;
-}
+memory_map_t mmap;
 
 // Returns true if the address is within the range
 static inline bool range_contains_addr(uint64_t addr, uint64_t start, uint64_t end) {
@@ -169,10 +31,6 @@ struct free_pool_node *pop_free_pool_entry() {
     return res;
 }
 
-int get_allocated_pages() {
-    return mmap.allocated_pages;
-}
-
 // Returns an address to a free page frame
 physical_addr_t MMU_pf_alloc(void) {
     physical_addr_t page;
@@ -181,7 +39,6 @@ physical_addr_t MMU_pf_alloc(void) {
 
     // Check the free pool linked list first
     if ((node = pop_free_pool_entry()) != NULL) {
-        mmap.allocated_pages++;
         return (physical_addr_t)node;
     }
 
@@ -199,21 +56,20 @@ physical_addr_t MMU_pf_alloc(void) {
             mmap.current_page = align_page(mmap.current_region->start);
         } 
         
-        if (range_contains_addr(mmap.current_page, mmap.kernel_start, mmap.kernel_end)) {
+        if (range_contains_addr(mmap.current_page, mmap.kernel.start, mmap.kernel.end)) {
             // Page is inside of kernel
-            mmap.current_page = align_page(mmap.kernel_end);
+            mmap.current_page = align_page(mmap.kernel.end);
             continue; // Recheck address
         }
         
-        if (range_contains_addr(mmap.current_page, mmap.multiboot_start, mmap.multiboot_end)) {
-            mmap.current_page = align_page(mmap.multiboot_end);
+        if (range_contains_addr(mmap.current_page, mmap.multiboot.start, mmap.multiboot.end)) {
+            mmap.current_page = align_page(mmap.multiboot.end);
             continue; // Recheck address
         }
 
         page_valid = true;
     }
 
-    mmap.allocated_pages++;
     page = mmap.current_page;
     mmap.current_page += PAGE_SIZE;
     return page;
@@ -230,195 +86,4 @@ void MMU_pf_free(physical_addr_t pf) {
 
     // Add free pool entry to the linked list
     push_free_pool_entry(entry);
-    mmap.allocated_pages--;
 }
-
-// Page Table Functions
-
-// Allocates a new page frame for a page table
-page_table_t *allocate_table() {
-    page_table_t *table = (page_table_t *)MMU_pf_alloc();
-    memset(table, 0, sizeof(page_table_t));
-    return table;
-}
-
-page_table_t *entry_to_table(page_table_t *parent_table, int i) {
-    return (page_table_t *)((physical_addr_t)parent_table->table[i].base_addr << PAGE_OFFSET);
-}
-
-typedef struct {
-    uint64_t page_offset : 12;
-    uint64_t pt_index : 9;
-    uint64_t pd_index : 9;
-    uint64_t pdp_index : 9;
-    uint64_t pml4_index : 9;
-    uint64_t sign_extension : 16;
-} __attribute__((packed)) pt_index_t;
-
-void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
-    pt_index_t *i;
-    i = (pt_index_t *)&virt_addr;
-    page_table_t *pdp, *pd, *pt;
-    uint64_t *pt_entry;
-
-    if (!pml4->table[i->pml4_index].present) {
-        pml4->table[i->pml4_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
-        pml4->table[i->pml4_index].present = 1;
-    }
-    pdp = entry_to_table(pml4, i->pml4_index);
-
-    if (!pdp->table[i->pdp_index].present) {
-        pdp->table[i->pdp_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
-        pdp->table[i->pdp_index].present = 1;
-    }
-    pd = entry_to_table(pdp, i->pdp_index);
-
-
-    if (!pd->table[i->pd_index].present) {
-        pd->table[i->pd_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
-        pd->table[i->pd_index].present = 1;
-    }
-    pt = entry_to_table(pd, i->pd_index);
-
-    pt_entry = (uint64_t *)&pt->table[i->pt_index];
-    *pt_entry = phys_addr | PAGE_PRESENT | flags;
-}
-
-void identity_map(page_table_t *pml4, physical_addr_t start, physical_addr_t end) {
-    printk("Identity mapped region: 0x%lx - 0x%lx\n", start, end);
-    for ( ; start < end; start += PAGE_SIZE) {
-        map_page(pml4, start, start, PAGE_WRITABLE);
-    }
-}
-
-void map_range(page_table_t *pml4, physical_addr_t start, physical_addr_t end, 
-    virtual_addr_t offset, uint64_t flags) 
-{
-    virtual_addr_t vcurrent, size = end - start;
-    physical_addr_t pcurrent = start;
-
-    for (vcurrent = offset; vcurrent < offset + size; vcurrent += PAGE_SIZE) {
-        map_page(pml4, vcurrent, pcurrent, flags);        
-        pcurrent += PAGE_SIZE;
-    }
-}
-
-pt_entry_t *get_page_frame(page_table_t *pml4, virtual_addr_t addr) {
-    pt_index_t *i = (pt_index_t *)&addr;
-    page_table_t *pdp = entry_to_table(pml4, i->pml4_index);
-    if (pdp == NULL) return NULL;
-    page_table_t *pd = entry_to_table(pdp, i->pdp_index);
-    if (pd == NULL) return NULL;
-    page_table_t *pt = entry_to_table(pd, i->pd_index);
-    if (pt == NULL) return NULL;
-    return &pt->table[i->pt_index];
-}
-
-void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
-    char *action = (error_code & 0x2) ? "write" : "read";
-    printk("PAGE FAULT: Invalid %s at %p\n", action, (void *)get_cr2());
-    while (1) asm("hlt");
-}
-
-// void print_pml4(page_table_t *pml4, virtual_addr_t start, virtual_addr_t end) {
-//     virtual_addr_t current;
-//     bool mapped = false;
-//     pt_index_t *i;
-//     pt_entry_t *page;
-
-//     for (current = start; current < end; current += PAGE_SIZE) {
-//         i = (pt_index_t*)&current;
-//         page = get_page_frame(pml4, current);
-//         if (mapped) {
-//             if (page == NULL || page->present == 0) {
-//                 mapped = false;
-//                 printk("0x%lx (PML4[%d])\n", current - 1, i->pml4_index);
-//             }
-//         } else {
-//             if (page != NULL && page->present == 1) {
-//                 mapped = true;
-//                 printk("MAPPED 0x%lx - ", current);
-//             }
-//         }
-//     }
-// }
-
-char *get_elf_section_name(int section_name_index) {
-    struct elf_section_header *strtab_header;
-    char *strtab;
-
-    strtab_header = ((struct elf_section_header *)(mmap.elf_tag + 1)) + mmap.elf_tag->string_table_index;
-    strtab = (char *)strtab_header->segment_address;
-
-    return strtab + section_name_index;
-}
-
-void remap_elf_sections(page_table_t *pml4) {
-    struct elf_section_header *current;
-    uint64_t flags;
-
-    for (current = (struct elf_section_header *)(mmap.elf_tag + 1);
-        (uint8_t *)current < (uint8_t *)mmap.elf_tag + mmap.elf_tag->size;
-        current++)
-    {
-        if (current->segment_size != 0) {
-            flags = 0;
-            // Set page flags based on type of elf section
-            if (current->type & ELF_WRITE_FLAG) flags |= PAGE_WRITABLE;
-            if (!(current->type & ELF_EXEC_FLAG)) flags |= PAGE_NO_EXECUTE;
-
-            map_range(pml4, current->segment_address, current->segment_address + current->segment_size, 
-                KERNEL_TEXT_START, flags);
-            printk("Mapped %s: 0x%lx -> 0x%lx\n", get_elf_section_name(current->section_name_index),
-                current->segment_address, current->segment_address + KERNEL_TEXT_START);
-        }
-    }
-}
-
-// Creates a stack in the virtual address space of specified size
-// Returns the address of the top of the stack
-virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t bottom) {
-    int i;
-    physical_addr_t paddr;
-
-    printk("Allocating stack, top at 0x%lx\n", bottom + STACK_SIZE);
-    for (i = 0; i < STACK_SIZE; i+=PAGE_SIZE) {
-        paddr = MMU_pf_alloc();
-        map_page(pml4, bottom + i, paddr, PAGE_NO_EXECUTE);
-    }
-
-    return i;
-}
-
-virtual_addr_t setup_pml4() {
-    struct free_mem_region *region = mmap.current_region;
-    physical_addr_t new_stack;
-    page_table_t *pml4 = allocate_table();
-    printk("Created PML4 at physical address %p\n", (void *)pml4);
-
-    // Register page fault handler
-    IRQ_set_handler(PAGE_FAULT_IRQ, page_fault_handler, NULL);
-
-    // Enable no execute flag in EFER
-    enable_no_execute();
-
-    // Identity map our physical memory
-    while (region != NULL) {
-        identity_map(pml4, region->start, region->end);
-        region = region->next;
-    }
-
-    // Identity map VGA address
-    map_page(pml4, VGA_ADDR, VGA_ADDR, PAGE_WRITABLE | PAGE_NO_EXECUTE);
-
-    // Map ELF sections into kernel text region
-    remap_elf_sections(pml4);
-
-    // Create stack
-    new_stack = map_stack(pml4, KERNEL_STACKS_START);
-
-    printk("Loading new PML4...\n");
-    set_cr3((physical_addr_t)pml4);
-    return new_stack;
-}
-

@@ -7,7 +7,7 @@
 
 // Interrupt configuration
 #define INTERRUPT_GATE 0xE
-#define NUM_ENTRIES 256
+#define NUM_IDT_ENTRIES 256
 
 // PIC Ports
 #define PIC1_COMMAND 0x20
@@ -53,13 +53,13 @@ typedef struct {
 
 // Interrupt descriptor table
 __attribute__((aligned(16)))
-static idt_entry_t idt[NUM_ENTRIES];
+static idt_entry_t idt[NUM_IDT_ENTRIES];
 
 // ISR table (indexed by assembly isr wrappers)
 static struct {
     void *arg;
     irq_handler_t handler;
-} irq_handler_table[NUM_ENTRIES];
+} irq_handler_table[NUM_IDT_ENTRIES];
 
 // IRQ name table
 char *irq_name_table[32] = {
@@ -106,6 +106,22 @@ void set_idt_entry(uint8_t irq) {
     entry->res2 = 0;
 }
 
+void apply_idt_offset(uint64_t offset) {
+    int i;
+    uint64_t addr;
+    idt_entry_t *entry;
+
+    for (i = 0; i < NUM_IDT_ENTRIES; i++) {
+        addr = (uint64_t)isr_wrapper_table[i];
+        addr += offset;
+        entry = &idt[i];
+
+        entry->isr_low = addr & 0xFFFF;
+        entry->isr_mid = (addr >> 16) & 0xFFFF;
+        entry->isr_high = (addr >> 32) & 0xFFFFFFFF;
+    }
+}
+
 void PIC_remap() {
     uint8_t mask1 = inb(PIC1_DATA);
     uint8_t mask2 = inb(PIC2_DATA);
@@ -136,7 +152,7 @@ void IRQ_init() {
     int i;
 
     // Set all entries in IDT
-    for (i = 0; i < NUM_ENTRIES; i++) {
+    for (i = 0; i < NUM_IDT_ENTRIES; i++) {
         set_idt_entry(i);
     }
 
@@ -146,7 +162,7 @@ void IRQ_init() {
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
 
     // Load IDT register
-    lidt(&idt[0], (sizeof(idt_entry_t) * NUM_ENTRIES) - 1);
+    lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);
 
     // Mask out all PIC interrupts
     outb(PIC1_DATA, 0xFF);

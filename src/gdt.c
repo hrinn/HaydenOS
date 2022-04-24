@@ -7,8 +7,6 @@
 #define TSS_OFFSET 0x28
 #define TSS_TYPE 0x9
 
-#define STACK_SIZE 4096
-
 extern uint64_t gdt64;
 
 typedef struct {
@@ -72,17 +70,11 @@ typedef struct {
     tss_descriptor_t tss_descriptor;
 } __attribute__((packed)) gdt_t;
 
-typedef struct stack {
-    uint8_t d[STACK_SIZE];
-} __attribute__((aligned(16))) stack_t;
-
 static tss_t tss;
 static gdt_t gdt;
-
-// Stacks for TSS
-static stack_t stack1;
-static stack_t stack2;
-static stack_t stack3;
+extern uint8_t ist_stack1_top;
+extern uint8_t ist_stack2_top;
+extern uint8_t ist_stack3_top;
 
 void GDT_remap() {
     // Copy GDT 64 defined in boot.asm to new gdt
@@ -97,9 +89,9 @@ void TSS_init() {
     uint64_t tss_addr = (uint64_t)&tss;
 
     // Initialize TSS
-    tss.ist[0] = (uint64_t)(((stack_t *)&stack1) + 1);
-    tss.ist[1] = (uint64_t)(((stack_t *)&stack2) + 1);
-    tss.ist[2] = (uint64_t)(((stack_t *)&stack3) + 1);
+    tss.ist[0] = (uint64_t)&ist_stack1_top;
+    tss.ist[1] = (uint64_t)&ist_stack2_top;
+    tss.ist[2] = (uint64_t)&ist_stack3_top;
 
     // Initialize TSS descriptor
     gdt.tss_descriptor.limit_15_0 = tss_limit & 0xFFFF;
@@ -120,4 +112,11 @@ void TSS_init() {
 
     // Load the offset of the TSS descriptor in the GDT
     ltr(TSS_OFFSET);
+}
+
+void TSS_remap(virtual_addr_t *stack_tops, int n) {
+    int i;
+    for (i = 0; i < n; i++) {
+        tss.ist[i] = stack_tops[i];
+    }
 }

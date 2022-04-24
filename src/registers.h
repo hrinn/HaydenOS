@@ -40,6 +40,10 @@ static inline void set_cr3(uint64_t data) {
     asm ( "movq %0, %%cr3" : : "r"(data));
 }
 
+static inline void set_rsp(uint64_t rsp) {
+    asm ( "movq %0, %%rsp" : : "r"(rsp));
+}
+
 static inline uint64_t get_cr2() {
     uint64_t res;
     asm ( "movq %%cr2, %0" : "=r"(res));

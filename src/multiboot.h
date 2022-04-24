@@ -3,47 +3,13 @@
 
 #include <stdint-gcc.h>
 
-#define MULTIBOOT_TAG_TYPE_ELF 9
-#define MULTIBOOT_TAG_TYPE_MMAP 6
-#define MULTIBOOT_TAG_TYPE_END 0
-#define MMAP_ENTRY_FREE_TYPE 1
-
-#define ELF_WRITE_FLAG 0x1
-#define ELF_EXEC_FLAG 0x4
-
 // Structures to parse the multiboot tags
 struct multiboot_info {
     uint32_t total_size;
     uint32_t reserved;
 };
 
-struct multiboot_tag {
-    uint32_t type;
-    uint32_t size;
-};
-
-struct multiboot_mmap_entry {
-    uint64_t addr;
-    uint64_t len;
-    uint32_t type;
-    uint32_t zero;
-};
-
-struct multiboot_mmap_tag {
-    uint32_t type;
-    uint32_t size;
-    uint32_t entry_size;
-    uint32_t entry_version;
-};
-
-struct multiboot_elf_tag {
-    uint32_t type;
-    uint32_t size;
-    uint32_t num_entries;
-    uint32_t entry_size;
-    uint32_t string_table_index;
-};
-
+// Entry in multiboot struct that contains ELF info
 struct elf_section_header {
     uint32_t section_name_index;
     uint32_t type;
@@ -57,6 +23,15 @@ struct elf_section_header {
     uint64_t fixed_entry_size;
 };
 
+struct multiboot_elf_tag {
+    uint32_t type;
+    uint32_t size;
+    uint32_t num_entries;
+    uint32_t entry_size;
+    uint32_t string_table_index;
+};
+
 void parse_multiboot_tags(struct multiboot_info *);
+char *get_elf_section_name(int section_name_index);
 
 #endif

@@ -1,5 +1,4 @@
-global start
-global gdt64
+global start, gdt64
 extern long_mode_start
 
 section .rodata
@@ -137,6 +136,10 @@ enable_paging:
     ret
 
 ; Stack
+global p4_table, p3_table, p2_table, stack_bottom
+global ist_stack1_bottom, ist_stack1_top, ist_stack2_bottom
+global ist_stack2_top, ist_stack3_bottom, ist_stack3_top
+
 section .bss
 align 4096
 p4_table:
@@ -145,6 +148,19 @@ p3_table:
     resb 4096
 p2_table:
     resb 4096
+
 stack_bottom:
     resb 4096 * 2
 stack_top:
+
+ist_stack1_bottom:
+    resb 4096 * 2
+ist_stack1_top:
+
+ist_stack2_bottom:
+    resb 4096 * 2
+ist_stack2_top:
+
+ist_stack3_bottom:
+    resb 4096 * 2
+ist_stack3_top:
