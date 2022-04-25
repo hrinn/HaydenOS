@@ -33,7 +33,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     setup_pml4(stack_addresses);
 
     // Remap TSS stack addresses
-    // TSS_remap(stack_addresses + 1, 3);
+    TSS_remap(stack_addresses + 1, 3);
 
     // Switch execution to kernel space
     asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
@@ -42,11 +42,10 @@ void kmain(struct multiboot_info *multiboot_tags) {
 #pragma GCC diagnostic pop
 
 void kmain_stage2() {
-    apply_idt_offset(KERNEL_TEXT_START);
+    apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();
-    // TODO: setup new TSS stacks and free old ones
     printk("Executing in kernel space\n");
-    asm ("int3");
+
 
     while (1) asm("hlt");
 }

@@ -81,7 +81,6 @@ void irq_handler(uint8_t irq, uint32_t error_code) {
         // No entry set for this irq
         printk("Unhandled Interrupt %d (%s)\n", 
             irq, irq < 32 ? irq_name_table[irq] : "External/Trap");
-        sti();
         while (1) asm("hlt");
     }
 }
@@ -107,12 +106,15 @@ void set_idt_entry(uint8_t irq) {
     entry->res2 = 0;
 }
 
-void apply_idt_offset(uint64_t offset) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpointer-arith"
+void apply_isr_offset(uint64_t offset) {
     int i;
     uint64_t addr;
     idt_entry_t *entry;
 
     for (i = 0; i < NUM_IDT_ENTRIES; i++) {
+        // Adjust IDT entry
         addr = (uint64_t)isr_wrapper_table[i];
         addr += offset;
         entry = &idt[i];
@@ -120,8 +122,15 @@ void apply_idt_offset(uint64_t offset) {
         entry->isr_low = addr & 0xFFFF;
         entry->isr_mid = (addr >> 16) & 0xFFFF;
         entry->isr_high = (addr >> 32) & 0xFFFFFFFF;
+
+        // Adjust irq handler table entries
+        if (irq_handler_table[i].handler) {
+            irq_handler_table[i].handler += offset;
+        }
     }
 }
+#pragma GCC diagnostic pop
+
 
 void PIC_remap() {
     uint8_t mask1 = inb(PIC1_DATA);

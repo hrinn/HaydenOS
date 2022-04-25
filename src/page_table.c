@@ -183,7 +183,7 @@ void remap_elf_sections(page_table_t *pml4) {
             if (!(current->flags & ELF_EXEC_FLAG)) flags |= PAGE_NO_EXECUTE;
 
             map_range(pml4, current->segment_address, KERNEL_TEXT_START + current->segment_address, current->segment_size, flags);
-            printk("Mapped %s to 0x%lx\n", get_elf_section_name(current->section_name_index), KERNEL_TEXT_START + current->segment_address);
+            printk("Mapped %s to 0x%lx (%lx)\n", get_elf_section_name(current->section_name_index), KERNEL_TEXT_START + current->segment_address, current->flags);
         }
     }
 }
@@ -231,9 +231,9 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
 
     // Map main stack and IST stacks
     stack_addresses[0] = map_stack(pml4, KERNEL_STACKS_START, (physical_addr_t)&stack_bottom);
-    // stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
-    // stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
-    // stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
+    stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
+    stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
+    stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);

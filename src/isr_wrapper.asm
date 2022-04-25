@@ -6,7 +6,7 @@ isr_wrapper_%1:
     push rdi
     push rsi
     mov dil, %1 ; place irq number in rdi
-    mov esi, -1 ; place invalid error code in rsi
+    mov esi, 0  ; place no error code in rsi
     jmp isr_generic
 %endmacro
 
