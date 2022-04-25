@@ -3,36 +3,23 @@
 
 #include "memdef.h"
 
+// Beginning of multiboot tags structure
+struct multiboot_info {
+    uint32_t total_size;
+    uint32_t reserved;
+};
+
+// Memory management interface
 physical_addr_t MMU_pf_alloc(void);
 void MMU_pf_free(physical_addr_t pf);
+void *MMU_alloc_page();
+void *MMU_alloc_pages(int num);
+void MMU_free_page(void *);
+void MMU_free_pages(void *, int num);
 
-struct free_pool_node {
-    struct free_pool_node *next;
-};
-
-struct free_mem_region {
-    physical_addr_t start;
-    physical_addr_t end;
-    struct free_mem_region *next;
-};
-
-struct addr_range {
-    physical_addr_t start;
-    physical_addr_t end;
-};
-
-typedef struct mmap {
-    struct addr_range kernel;
-    struct addr_range multiboot;
-    struct free_mem_region *first_region;
-    struct free_mem_region *current_region;
-    physical_addr_t current_page;
-    struct free_pool_node *free_pool;
-    struct multiboot_elf_tag *elf_tag;
-} memory_map_t;
-
-static inline uint64_t align_page(uint64_t addr) {
-    return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-}
+// Initialization functions
+void parse_multiboot_tags(struct multiboot_info *);
+void setup_pml4(virtual_addr_t *);
+void cleanup_old_virtual_space();
 
 #endif

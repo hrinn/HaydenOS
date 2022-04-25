@@ -6,8 +6,6 @@
 #include "gdt.h"
 #include "serial.h"
 #include "mmu.h"
-#include "page_table.h"
-#include "multiboot.h"
 
 void kmain_stage2(void);
 
@@ -43,9 +41,8 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
 void kmain_stage2() {
     apply_isr_offset(KERNEL_TEXT_START);
-    cleanup_old_virtual_space();
+    cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     printk("Executing in kernel space\n");
-
 
     while (1) asm("hlt");
 }
