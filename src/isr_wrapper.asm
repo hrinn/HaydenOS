@@ -27,6 +27,7 @@ global isr_generic
 isr_generic:
     ; expects rdi and rsi already pushed;
     ; rsi at top of stack
+
     ; push rest of scratch registers
     push rax
     push rcx

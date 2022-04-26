@@ -5,6 +5,7 @@
 #include "irq.h"
 #include "string.h"
 #include "registers.h"
+#include "error.h"
 
 // Multiboot types
 #define MULTIBOOT_TAG_TYPE_ELF 9
@@ -12,22 +13,31 @@
 #define MULTIBOOT_TAG_TYPE_END 0
 #define MMAP_ENTRY_FREE_TYPE 1
 
+// Page table
+#define NUM_ENTRIES 512
+#define KERNEL_STACKS_START 0xffffff8000000000
+#define KERNEL_HEAP_START 0xffff808000000000
+#define KERNEL_PSTACKS_START 0xffffff0000000000
+#define PAGE_SIZE 4096
+
 // Page table entry flags
 #define PAGE_PRESENT 0x1
 #define PAGE_WRITABLE 0x2
 #define PAGE_USER_ACCESS 0x4
+#define PAGE_ALLOCATED 0x200
 #define PAGE_NO_EXECUTE 0x8000000000000000
 
 // Addresses and offsets
 #define SECTION_SIZE 0x7FFFFFFFFF
 #define VGA_ADDR 0xB8000
 #define PAGE_OFFSET 12
+#define STACK_SIZE PAGE_SIZE * 2
 
 // ELF section flags
 #define ELF_WRITE_FLAG 0x1
 #define ELF_EXEC_FLAG 0x4
 
-// Interrupt numbers
+// Interrupts
 #define PAGE_FAULT_IRQ 14
 
 // Structs for tracking physical and virtual system memory
@@ -108,7 +118,8 @@ typedef struct page_table_entry {
     uint64_t dirty : 1;
     uint64_t huge : 1;
     uint64_t global : 1;
-    uint64_t avl1 : 3;
+    uint64_t allocated : 1; // Replaced an available bit
+    uint64_t avl1 : 2;
     uint64_t base_addr : 40;
     uint64_t avl2 : 11;
     uint64_t no_execute : 1;
@@ -127,6 +138,10 @@ typedef struct {
     uint64_t sign_extension : 16;
 } __attribute__((packed)) pt_index_t;
 
+// Function definitions
+void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags);
+pt_entry_t *get_page_frame(page_table_t *pml4, virtual_addr_t addr);
+
 // External labels and functions
 extern void enable_no_execute(void);
 extern uint8_t p4_table;
@@ -140,7 +155,7 @@ extern uint8_t ist_stack3_bottom;
 // Static variables
 static memory_map_t mmap;
 static page_table_t *pml4;
-
+static virtual_addr_t kernel_heap_top = KERNEL_HEAP_START; // Next available page
 
 static inline uint64_t align_page(uint64_t addr) {
     return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -186,8 +201,7 @@ physical_addr_t MMU_pf_alloc(void) {
         if (!range_contains_addr(mmap.current_page, mmap.current_region->start, mmap.current_region->end)) {
             // Page is outside of current memory region
             if (mmap.current_region->next == NULL) {
-                printk("Tried to allocate address: %p\n", (void *)mmap.current_page);
-                printk("ERROR: NO PHYSICAL MEMORY REMAINING!\n");
+                blue_screen("MMU_pf_alloc: No physical memory remaining");
                 while (1) asm("hlt");
             }
             // Set current free entry to next
@@ -228,18 +242,66 @@ void MMU_pf_free(physical_addr_t pf) {
 }
 
 void *MMU_alloc_page() {
-    return NULL;
+    virtual_addr_t address;
+
+    if (kernel_heap_top >= KERNEL_PSTACKS_START) {
+        printk("MMU_alloc_page: exhausted terabytes of kernel heap space!\n");
+        return NULL;
+    }
+
+    // Map a page at the current heap top
+    // Leave this page as not present, but set allocated bit for on demand paging
+    map_page(pml4, kernel_heap_top, 0, PAGE_ALLOCATED | PAGE_WRITABLE | PAGE_NO_EXECUTE);
+    
+    address = kernel_heap_top;
+    kernel_heap_top += PAGE_SIZE;
+    return (void *)address;
 }
 
 void *MMU_alloc_pages(int num) {
-    return NULL;
+    int i;
+    void *start_address, *temp;
+
+    for (i = 0; i < num; i++) {
+        temp = MMU_alloc_page();
+        if (i == 0) start_address = temp;
+    }
+
+    return start_address;
 }
 
 void MMU_free_page(void *address) {
+    virtual_addr_t vaddr = (virtual_addr_t)address;
+    physical_addr_t pf;
+    pt_entry_t *entry;
 
+    if (vaddr < KERNEL_HEAP_START || vaddr >= KERNEL_PSTACKS_START) {
+        printk("MMU_free_page: tried to free an invalid address\n");
+        return;
+    }
+
+    entry = get_page_frame(pml4, vaddr);
+    pf = (physical_addr_t)(entry->base_addr << PAGE_OFFSET);
+
+    if (entry->present == 1) {
+        // Page was allocated on demand, must deallocate
+        MMU_pf_free(pf);
+    }
+
+    entry->present = 0;
+    entry->allocated = 0;
+
+    // There is so much space available in the virtual memory
+    // That we don't have to track freed pages
 }
-void MMU_free_pages(void *start_address, int num) {
 
+void MMU_free_pages(void *start_address, int num) {
+    int i;
+
+    for (i = 0; i < num; i++) {
+        MMU_free_page(start_address);
+        start_address = (void *)(((virtual_addr_t)start_address) + PAGE_SIZE);
+    }
 }
 
 // Functions for parsing multiboot tags /////////////////////////////
@@ -375,7 +437,7 @@ page_table_t *entry_to_table(page_table_t *parent_table, int i) {
 }
 
 // Takes a virtual address and maps it to a physical address in the provided PML4
-// Sets present bit, and provided flags
+// Sets provided flags
 void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
     pt_index_t *i;
     i = (pt_index_t *)&virt_addr;
@@ -402,7 +464,7 @@ void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys
     pt = entry_to_table(pd, i->pd_index);
 
     pt_entry = (uint64_t *)&pt->table[i->pt_index];
-    *pt_entry = phys_addr | PAGE_PRESENT | flags;
+    *pt_entry = phys_addr | flags;
 }
 
 
@@ -411,7 +473,7 @@ void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys
 void identity_map(page_table_t *pml4, physical_addr_t start, physical_addr_t end) {
     printk("Identity mapped region: 0x%lx - 0x%lx\n", start, end - 1);
     for ( ; start < end; start += PAGE_SIZE) {
-        map_page(pml4, start, start, PAGE_WRITABLE);
+        map_page(pml4, start, start, PAGE_PRESENT | PAGE_WRITABLE);
     }
 }
 
@@ -449,8 +511,23 @@ void set_page_noexec(page_table_t *pml4, virtual_addr_t addr) {
 
 // Handles page faults
 void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
-    char *action = (error_code & 0x2) ? "write" : "read";
-    printk("PAGE FAULT: Invalid %s at %p\n", action, (void *)get_cr2());
+    virtual_addr_t page = get_cr2();
+    physical_addr_t pf;
+    char *action;
+    pt_entry_t *entry;
+
+    entry = get_page_frame(pml4, page);
+
+    if (entry != NULL && entry->allocated) {
+        // On demand paging
+        pf = MMU_pf_alloc();
+        entry->base_addr = (pf >> PAGE_OFFSET);
+        entry->present = 1;
+        return;
+    }
+
+    action = (error_code & 0x2) ? "write" : "read";
+    printk("PAGE FAULT: Invalid %s at %p\n", action, (void *)page);
     while (1) asm("hlt");
 }
 
@@ -466,7 +543,7 @@ void remap_elf_sections(page_table_t *pml4) {
         (uint8_t *)current < (uint8_t *)mmap.elf_tag + mmap.elf_tag->size;
         current++)
     {
-        flags = 0;
+        flags = PAGE_PRESENT;
         if (current->segment_size != 0) {
             // Set page flags based on type of elf section
             if (current->flags & ELF_WRITE_FLAG) flags |= PAGE_WRITABLE;
@@ -486,7 +563,7 @@ virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t vbottom, physical_ad
 
     // Leave room for a guard page
     for (vcurrent = vbottom + PAGE_SIZE; vcurrent < vbottom + STACK_SIZE + PAGE_SIZE; vcurrent += PAGE_SIZE) {
-        map_page(pml4, vcurrent, pcurrent, PAGE_NO_EXECUTE | PAGE_WRITABLE);
+        map_page(pml4, vcurrent, pcurrent, PAGE_PRESENT | PAGE_NO_EXECUTE | PAGE_WRITABLE);
         pcurrent += PAGE_SIZE;
     }
 
@@ -514,7 +591,7 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
     }
 
     // Identity map VGA address
-    map_page(pml4, VGA_ADDR, VGA_ADDR, PAGE_WRITABLE | PAGE_NO_EXECUTE);
+    map_page(pml4, VGA_ADDR, VGA_ADDR, PAGE_PRESENT | PAGE_WRITABLE | PAGE_NO_EXECUTE);
 
     // Map ELF sections into kernel text region
     remap_elf_sections(pml4);

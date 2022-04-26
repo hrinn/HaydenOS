@@ -30,6 +30,11 @@ typedef struct {
 
 static state_t uart_state;
 
+void SER_kspace_offset(uint64_t offset) {
+    uart_state.head += offset;
+    uart_state.tail += offset;
+}
+
 // Initializes circular buffer state
 void init_state(state_t *state) {
     state->head = &state->buff[0];

@@ -25,6 +25,21 @@ void VGA_clear() {
     if (int_en) sti();
 }
 
+void VGA_paint() {
+    int i;
+    uint16_t color;
+    uint16_t int_en = check_int();
+    if (int_en) cli();
+
+    color = (bg_color << 12) | (fg_color << 8);
+    for (i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
+        vga[i] = color;
+    }
+    cursor = 0;
+
+    if (int_en) sti();
+}
+
 void scroll() {
     memcpy(vga, vga + VGA_WIDTH, ((VGA_HEIGHT - 1) * VGA_WIDTH) * 2);
     memset(vga + ((VGA_HEIGHT - 1) * VGA_WIDTH), 0, VGA_WIDTH * 2);

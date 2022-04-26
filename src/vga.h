@@ -6,6 +6,7 @@ void VGA_display_char(char);
 void VGA_display_str(const char *, int);
 void VGA_set_bg_color(char);
 void VGA_set_fg_color(char);
+void VGA_paint();
 
 // Colors
 #define VGA_BLACK 0x0
