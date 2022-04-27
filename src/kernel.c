@@ -6,7 +6,7 @@
 #include "gdt.h"
 #include "serial.h"
 #include "mmu.h"
-#include "error.h"
+#include "kmalloc.h"
 
 void kmain_stage2(void);
 
@@ -40,27 +40,46 @@ void kmain(struct multiboot_info *multiboot_tags) {
 }
 #pragma GCC diagnostic pop
 
+void test_kmalloc() {
+    int n = 0;
+
+    void *addresses[100];
+    void **adp = addresses;
+
+    printk("TEST: Allocating block sizes\n");
+
+    for (n = 32; n <= 2048; n *= 2) {
+        *adp = kmalloc(n - 16);
+        printk("%d + 16: %p\n", n - 16, *adp);
+        adp++;
+    }
+
+    printk("TEST: Allocating just above block size\n");
+
+    for (n = 32; n <= 2048; n *= 2) {
+        *adp = kmalloc(n);
+        printk("%d: %p\n", n, *adp);
+        adp++;
+    }
+
+    printk("TEST: Freeing all allocated blocks\n");
+    while (adp > addresses) {
+        kfree(*--adp);
+    }
+
+    printk("TEST: Allocate 100 64B blocks\n");
+    for (n = 0; n < 100; n++) {
+        addresses[n] = kmalloc(48);
+    }
+}
+
 void kmain_stage2() {
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
     printk("Executing in kernel space\n");
 
-    printk("Allocating a page\n");
-    char *my_page = (char *)MMU_alloc_page();
-
-    printk("Writing to page\n");
-    int i;
-    for (i = 0; i < 64; i++) {
-        my_page[i] = 'P';
-    }
-    my_page[i] = '\0';
-
-    printk("Reading page\n");
-    printk("%s\n", my_page);
-
-    printk("Deallocating page\n");
-    MMU_free_page(my_page);
+    test_kmalloc();
 
     while (1) asm("hlt");
 }

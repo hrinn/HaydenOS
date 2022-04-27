@@ -3,6 +3,8 @@
 
 #include "memdef.h"
 
+#define PAGE_SIZE 4096
+
 // Beginning of multiboot tags structure
 struct multiboot_info {
     uint32_t total_size;

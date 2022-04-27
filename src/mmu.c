@@ -18,7 +18,6 @@
 #define KERNEL_STACKS_START 0xffffff8000000000
 #define KERNEL_HEAP_START 0xffff808000000000
 #define KERNEL_PSTACKS_START 0xffffff0000000000
-#define PAGE_SIZE 4096
 
 // Page table entry flags
 #define PAGE_PRESENT 0x1
@@ -155,7 +154,7 @@ extern uint8_t ist_stack3_bottom;
 // Static variables
 static memory_map_t mmap;
 static page_table_t *pml4;
-static virtual_addr_t kernel_heap_top = KERNEL_HEAP_START; // Next available page
+static virtual_addr_t kernel_brk = KERNEL_HEAP_START; // Next available page
 
 static inline uint64_t align_page(uint64_t addr) {
     return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -244,17 +243,17 @@ void MMU_pf_free(physical_addr_t pf) {
 void *MMU_alloc_page() {
     virtual_addr_t address;
 
-    if (kernel_heap_top >= KERNEL_PSTACKS_START) {
+    if (kernel_brk >= KERNEL_PSTACKS_START) {
         printk("MMU_alloc_page: exhausted terabytes of kernel heap space!\n");
         return NULL;
     }
 
     // Map a page at the current heap top
     // Leave this page as not present, but set allocated bit for on demand paging
-    map_page(pml4, kernel_heap_top, 0, PAGE_ALLOCATED | PAGE_WRITABLE | PAGE_NO_EXECUTE);
+    map_page(pml4, kernel_brk, 0, PAGE_ALLOCATED | PAGE_WRITABLE | PAGE_NO_EXECUTE);
     
-    address = kernel_heap_top;
-    kernel_heap_top += PAGE_SIZE;
+    address = kernel_brk;
+    kernel_brk += PAGE_SIZE;
     return (void *)address;
 }
 
