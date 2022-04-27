@@ -610,7 +610,7 @@ void free_thread_stack(virtual_addr_t top) {
     virtual_addr_t vcurrent;
     pt_entry_t *entry;
     physical_addr_t pf;
-    free_thread_stack_t *node, *new;
+    free_thread_stack_t *new;
 
     for (vcurrent = top - PAGE_SIZE; vcurrent > top - PAGE_SIZE - STACK_SIZE; vcurrent -= PAGE_SIZE) {
         entry = get_page_frame(pml4, vcurrent);
@@ -630,8 +630,8 @@ void free_thread_stack(virtual_addr_t top) {
     if (free_thread_stacks_head == NULL) {
         free_thread_stacks_head = new;
     } else {
-        node->next = free_thread_stacks_head;
-        free_thread_stacks_head = node;
+        new->next = free_thread_stacks_head;
+        free_thread_stacks_head = new;
     }
 }
 
