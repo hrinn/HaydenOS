@@ -630,9 +630,8 @@ void free_thread_stack(virtual_addr_t top) {
     if (free_thread_stacks_head == NULL) {
         free_thread_stacks_head = new;
     } else {
-        node = free_thread_stacks_head;
-        while (node->next != NULL) node = node->next;
-        node->next = new;
+        node->next = free_thread_stacks_head;
+        free_thread_stacks_head = node;
     }
 }
 
