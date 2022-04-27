@@ -4,7 +4,7 @@
 #include "debug.h"
 
 #define NUM_POOLS 7
-#define POOL_MAX 2048
+#define PAGE_OFFSET 12
 
 typedef struct free_list {
     struct free_list *next;
@@ -31,9 +31,9 @@ static kmalloc_pool_t pools[NUM_POOLS] = {
     {2048, 0, NULL}
 };
 
-// Round size up to the nearest multiple of 4096
+// Counts the number of pages required to fit (size) bytes
 static int num_pages(size_t size) {
-    return ((size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) / PAGE_SIZE;
+    return ((size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1)) >> PAGE_OFFSET;
 }
 
 static void allocate_blocks(kmalloc_pool_t *pool) {
@@ -72,7 +72,7 @@ static free_list_t *pop_free_block(kmalloc_pool_t *pool) {
     return block;
 }
 
-// Allocates memory on the kernel heap of size bytes
+// Allocates memory on the kernel heap of (size) bytes
 void *kmalloc(size_t size) {
     size_t full_size = size + sizeof(block_header_t);
     block_header_t *header;
@@ -99,7 +99,7 @@ void *kmalloc(size_t size) {
     header = (block_header_t *)MMU_alloc_pages(num_pages(full_size));
     header->pool = NULL;
     header->size = full_size;
-    DEBUG_PRINT("%ld too large, allocating pages starting at %p\n", full_size, (void *)header);
+    DEBUG_PRINT("%ld too large, allocating %d pages starting at %p\n", full_size, num_pages(full_size), (void *)header);
     return (void *)(header + 1);
 }
 

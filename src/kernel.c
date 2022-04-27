@@ -71,6 +71,16 @@ void test_kmalloc() {
     for (n = 0; n < 100; n++) {
         addresses[n] = kmalloc(48);
     }
+
+    printk("TEST: Free 100 64B blocks\n");
+    for (n = 0; n < 100; n++) {
+        kfree(addresses[n]);
+    }
+
+    printk("TEST: Allocate blocks until memory fills\n");
+    while (1) {
+        kmalloc(4096);
+    }
 }
 
 void kmain_stage2() {
