@@ -19,6 +19,10 @@ void *MMU_alloc_pages(int num);
 void MMU_free_page(void *);
 void MMU_free_pages(void *, int num);
 
+// For allocating and deallocating thread stacks
+virtual_addr_t allocate_thread_stack();
+void free_thread_stack(virtual_addr_t top);
+
 // Initialization functions
 void parse_multiboot_tags(struct multiboot_info *);
 void setup_pml4(virtual_addr_t *);

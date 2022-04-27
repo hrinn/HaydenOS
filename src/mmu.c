@@ -6,6 +6,7 @@
 #include "string.h"
 #include "registers.h"
 #include "error.h"
+#include "kmalloc.h"
 
 // Multiboot types
 #define MULTIBOOT_TAG_TYPE_ELF 9
@@ -64,6 +65,12 @@ typedef struct mmap {
     struct free_pool_node *free_pool;
     struct multiboot_elf_tag *elf_tag;
 } memory_map_t;
+
+// Track free thread stacks
+typedef struct free_thread_stack {
+    virtual_addr_t top;
+    struct free_thread_stack *next;
+} free_thread_stack_t;
 
 // Multiboot tag structs
 struct multiboot_tag {
@@ -155,6 +162,8 @@ extern uint8_t ist_stack3_bottom;
 static memory_map_t mmap;
 static page_table_t *pml4;
 static virtual_addr_t kernel_brk = KERNEL_HEAP_START; // Next available page
+static virtual_addr_t thread_stack_brk = KERNEL_STACKS_START;
+static free_thread_stack_t *free_thread_stacks_head;
 
 static inline uint64_t align_page(uint64_t addr) {
     return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
@@ -280,6 +289,7 @@ void MMU_free_page(void *address) {
     }
 
     entry = get_page_frame(pml4, vaddr);
+
     pf = (physical_addr_t)(entry->base_addr << PAGE_OFFSET);
 
     if (entry->present == 1) {
@@ -570,6 +580,62 @@ virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t vbottom, physical_ad
     return vcurrent;
 }
 
+// Demand allocates a 2 page stack in the thread stack region of virtual memory
+// Returns the addresses of the top of the stack
+virtual_addr_t allocate_thread_stack() {
+    virtual_addr_t vcurrent;
+    virtual_addr_t start = thread_stack_brk;
+
+    // Check if there is a free thread stack
+    if (free_thread_stacks_head != NULL) {
+        start = free_thread_stacks_head->top - STACK_SIZE - PAGE_SIZE;
+        kfree(free_thread_stacks_head);
+        free_thread_stacks_head = free_thread_stacks_head->next;
+    } else {
+        thread_stack_brk += STACK_SIZE + PAGE_SIZE;
+    }
+
+    // Leave room for a guard page
+    for (vcurrent = start + PAGE_SIZE; 
+        vcurrent < start + STACK_SIZE + PAGE_SIZE; 
+        vcurrent += PAGE_SIZE)
+    {
+        map_page(pml4, vcurrent, 0, PAGE_ALLOCATED | PAGE_WRITABLE | PAGE_NO_EXECUTE);
+    }
+
+    return vcurrent;
+}
+
+void free_thread_stack(virtual_addr_t top) {
+    virtual_addr_t vcurrent;
+    pt_entry_t *entry;
+    physical_addr_t pf;
+    free_thread_stack_t *node, *new;
+
+    for (vcurrent = top - PAGE_SIZE; vcurrent > top - PAGE_SIZE - STACK_SIZE; vcurrent -= PAGE_SIZE) {
+        entry = get_page_frame(pml4, vcurrent);
+        if (entry->present) {
+            pf = (physical_addr_t)(entry->base_addr << PAGE_OFFSET);
+            MMU_pf_free(pf);
+            entry->present = 0;
+        }
+        entry->allocated = 0;
+    }
+
+    // Add top to the list of free stacks
+    new = (free_thread_stack_t *)kmalloc(sizeof(free_thread_stack_t));
+    new->top = top;
+    new->next = NULL;
+
+    if (free_thread_stacks_head == NULL) {
+        free_thread_stacks_head = new;
+    } else {
+        node = free_thread_stacks_head;
+        while (node->next != NULL) node = node->next;
+        node->next = new;
+    }
+}
+
 // Sets up a new PML4 with identity map, kernel text, and kernel stack
 // Loads PML4 into CR3
 void setup_pml4(virtual_addr_t *stack_addresses) {
@@ -600,6 +666,7 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
     stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
     stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
     stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
+    thread_stack_brk = stack_addresses[3];
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);
