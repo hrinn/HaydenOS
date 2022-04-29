@@ -56,6 +56,10 @@ void rr_remove(kthread_context_t *thread) {
         // We are removing the tail
         tail = prev;
     }
+
+    if (current == next) {
+        next = current->sched_next;
+    }
 }
 
 // Returns a pointer to the next thread

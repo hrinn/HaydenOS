@@ -44,7 +44,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
 void thread(void *name) {
     int i;
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 3; i++) {
         printk("thread %s: %d\n", (char *)name, i);
         yield();
     }
@@ -58,13 +58,13 @@ void kmain_stage2() {
     printk("Executing in kernel space\n");
 
     PROC_init();
+
     PROC_create_kthread(thread, "A");
     PROC_create_kthread(thread, "B");
+    PROC_create_kthread(thread, "C");
 
-    while(1) {
-        PROC_run();
-        printk("Back to kmain!\n");
-    }
+    PROC_run();
+    printk("Back to kmain!\n");
 
-    // while (1) asm ("hlt");
+    while (1) asm ("hlt");
 }
