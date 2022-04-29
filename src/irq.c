@@ -34,6 +34,14 @@
 
 void IRQ_end_of_interrupt(uint8_t irq_line);
 
+typedef struct isr_stack_frame {
+    uint64_t rip;
+    uint16_t cs;
+    uint64_t rflags;
+    uint64_t rsp;
+    uint16_t ss;
+} isr_stack_frame_t;
+
 // IDT entry
 typedef struct {
     uint16_t isr_low;       // Lower 16 bits of ISR's address
@@ -77,13 +85,13 @@ static char *irq_name_table[32] = {
 
 static virtual_addr_t kernel_text_offset;
 
-void irq_handler(uint8_t irq, uint32_t error_code) {
+void irq_handler(uint8_t irq, uint32_t error_code, isr_stack_frame_t *stack_frame) {
     if (irq_handler_table[irq].handler) {
         irq_handler_table[irq].handler(irq, error_code, irq_handler_table[irq].arg);
     } else {
         // No entry set for this irq
-        printk("Unhandled Interrupt %d (%s)\n", 
-            irq, irq < 32 ? irq_name_table[irq] : "External/Trap");
+        printk("Unhandled Interrupt %d (%s) at 0x%lx\n", 
+            irq, irq < 32 ? irq_name_table[irq] : "External/Trap", stack_frame->rip);
         while (1) asm("hlt");
     }
 }

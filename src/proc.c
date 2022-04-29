@@ -15,9 +15,10 @@
 void yield_isr(uint8_t, unsigned int, void *);
 void kexit_isr(uint8_t, unsigned int, void *);
 
-static kthread_context_t *orig_proc;
-kthread_context_t *curr_proc;
-kthread_context_t *next_proc;
+static int pid = 1;
+static process_t *orig_proc;
+process_t *curr_proc;
+process_t *next_proc;
 
 // Initializes the multitasking system
 void PROC_init(void) {
@@ -36,13 +37,14 @@ void PROC_run(void) {
 
     if (rr_peek() == NULL) {
         // There were no threads in the scheduler
+        if (int_en) sti();
         return;
     }
 
     // Setup an original process and set it as the current process
     // On interrupt, the current process's context will be saved
-    orig_proc = (kthread_context_t *)kmalloc(sizeof(kthread_context_t));
-    // Maybe need to set rbp??
+    orig_proc = (process_t *)kmalloc(sizeof(process_t));
+    orig_proc->pid = 0;
     curr_proc = orig_proc;
 
     if (int_en) sti();
@@ -61,12 +63,13 @@ void PROC_reschedule(void) {
 }
 
 // Adds a new thread to the multitasking system
-void PROC_create_kthread(kproc_t entry_point, void *arg) {
-    kthread_context_t *context = (kthread_context_t *)kcalloc(1, sizeof(kthread_context_t));
+struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
+    process_t *context = (process_t *)kcalloc(1, sizeof(process_t));
 
     context->stack_top = allocate_thread_stack();
 
     // Set the registers that are currently known
+    context->pid = pid++;
     context->regfile.rbp = context->stack_top;
     context->regfile.rsp = context->stack_top;
     context->regfile.rip = ((uint64_t)entry_point) + KERNEL_TEXT_START;
@@ -76,6 +79,7 @@ void PROC_create_kthread(kproc_t entry_point, void *arg) {
 
     // Add this context to the scheduler
     rr_admit(context);
+    return context;
 }
 
 // Invokes the scheduler and passes control to the next eligible thread

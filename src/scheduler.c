@@ -2,12 +2,12 @@
 #include <stddef.h>
 #include "printk.h"
 
-static kthread_context_t *head;
-static kthread_context_t *tail;
-static kthread_context_t *next;
+static process_t *head;
+static process_t *tail;
+static process_t *next;
 
 void print_queue() {
-    kthread_context_t *current = head;
+    process_t *current = head;
 
     while (current != NULL) {
         printk("%p\n", (void *)current);
@@ -16,7 +16,7 @@ void print_queue() {
 }
 
 // Adds a thread to the schedule
-void rr_admit(kthread_context_t *thread) {
+void rr_admit(process_t *thread) {
     if (thread == NULL) return;
 
     if (head == NULL) {
@@ -30,9 +30,9 @@ void rr_admit(kthread_context_t *thread) {
 }
 
 // Removes a thread from the schedule
-void rr_remove(kthread_context_t *thread) {
-    kthread_context_t *prev = NULL;
-    kthread_context_t *current;
+void rr_remove(process_t *thread) {
+    process_t *prev = NULL;
+    process_t *current;
 
     if (thread == NULL) return;
 
@@ -63,13 +63,13 @@ void rr_remove(kthread_context_t *thread) {
 }
 
 // Returns a pointer to the next thread
-kthread_context_t *rr_peek() {
+process_t *rr_peek() {
     return next;
 }
 
 // Selects the next thread to run
-kthread_context_t *rr_next() {
-    kthread_context_t *temp;
+process_t *rr_next() {
+    process_t *temp;
 
     if (next == NULL) return NULL;
 

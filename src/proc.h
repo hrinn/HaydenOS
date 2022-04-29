@@ -9,10 +9,6 @@ typedef void (*kproc_t)(void *);
 #define KEXIT_IRQ 207
 #define KEXIT_IST 4
 
-void PROC_init(void);
-void PROC_run(void);
-void PROC_create_kthread(kproc_t entry_point, void *arg);
-
 // Invokes the scheduler and passes control to the next eligible thread
 static inline void yield(void) {
     asm volatile ( "INT $206" );
@@ -30,17 +26,22 @@ struct regfile {
     uint64_t r14;   uint64_t r15;
     uint16_t cs;    uint16_t ss;    uint16_t ds;
     uint16_t es;    uint16_t fs;    uint16_t gs;
-    // 4B of padding
     uint64_t rbp;
     uint64_t rsp;
     uint64_t rip;
     uint64_t rflags;
 };
 
-typedef struct kthread_context {
+typedef struct Process {
     struct regfile regfile;
+    int pid;
     virtual_addr_t stack_top;
-    struct kthread_context *sched_next;
-} kthread_context_t;
+    struct Process *sched_next;
+} process_t;
+
+
+void PROC_init(void);
+void PROC_run(void);
+struct Process *PROC_create_kthread(kproc_t entry_point, void *arg);
 
 #endif

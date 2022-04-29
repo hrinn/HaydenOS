@@ -42,10 +42,10 @@ void kmain(struct multiboot_info *multiboot_tags) {
 }
 #pragma GCC diagnostic pop
 
-void thread(void *name) {
+void thread(void *id) {
     int i;
     for (i = 0; i < 3; i++) {
-        printk("thread %s: %d\n", (char *)name, i);
+        printk("thread %d: %d\n", *(int *)id, i);
         yield();
     }
     kexit();
@@ -59,12 +59,17 @@ void kmain_stage2() {
 
     PROC_init();
 
-    PROC_create_kthread(thread, "A");
-    PROC_create_kthread(thread, "B");
-    PROC_create_kthread(thread, "C");
+    int i;
+    int ids[9];
+    process_t *proc;
+    for (i = 0; i < 9; i++) {
+        proc = PROC_create_kthread(thread, ids + i);
+        ids[i] = proc->pid;
+    }
 
-    PROC_run();
-    printk("Back to kmain!\n");
+    while (1) {
+        PROC_run();
+    }
 
-    while (1) asm ("hlt");
+    // while (1) asm ("hlt");
 }

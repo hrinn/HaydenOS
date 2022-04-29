@@ -75,6 +75,10 @@ isr_generic:
     push r14
     push r15
 
+    ; place a pointer to the stack frame stack in 3rd arg
+    mov rdx, rsp
+    add rdx, 96
+
     call irq_handler
 
     ; check if next process equals current process
