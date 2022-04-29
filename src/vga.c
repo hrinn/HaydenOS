@@ -91,14 +91,16 @@ void VGA_set_fg_color(char fg) {
 }
 
 int VGA_row_count(void) {
-    return VGA_WIDTH;
+    return VGA_HEIGHT;
 }
 
 int VGA_col_count(void) {
-    return VGA_HEIGHT;
+    return VGA_WIDTH;
 }
 
 void VGA_display_attr_char(int x, int y, char c, int fg, int bg) {
     unsigned short out = (bg << 12) | (fg << 8) | c;
-    vga[x * y] = out;
+    int pos = (y * VGA_WIDTH) + x;
+
+    vga[pos] = out;
 }

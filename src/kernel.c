@@ -7,8 +7,7 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include <stddef.h>
-#include "scheduler.h"
+#include "snakes.h"
 
 void kmain_stage2(void);
 
@@ -59,17 +58,9 @@ void kmain_stage2() {
 
     PROC_init();
 
-    int i;
-    int ids[9];
-    process_t *proc;
-    for (i = 0; i < 9; i++) {
-        proc = PROC_create_kthread(thread, ids + i);
-        ids[i] = proc->pid;
-    }
+    setup_snakes(1);
 
     while (1) {
         PROC_run();
     }
-
-    // while (1) asm ("hlt");
 }

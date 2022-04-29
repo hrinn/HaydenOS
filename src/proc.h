@@ -40,6 +40,9 @@ typedef struct Process {
 } process_t;
 
 
+extern process_t *curr_proc;
+extern process_t *next_proc;
+
 void PROC_init(void);
 void PROC_run(void);
 struct Process *PROC_create_kthread(kproc_t entry_point, void *arg);
