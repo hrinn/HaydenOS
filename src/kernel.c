@@ -6,7 +6,9 @@
 #include "gdt.h"
 #include "serial.h"
 #include "mmu.h"
-#include "kmalloc.h"
+#include "proc.h"
+#include <stddef.h>
+#include "scheduler.h"
 
 void kmain_stage2(void);
 
@@ -40,11 +42,29 @@ void kmain(struct multiboot_info *multiboot_tags) {
 }
 #pragma GCC diagnostic pop
 
+void thread(void *name) {
+    int i;
+    for (i = 0; i < 10; i++) {
+        printk("thread %s: %d\n", (char *)name, i);
+        yield();
+    }
+    kexit();
+}
+
 void kmain_stage2() {
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
     printk("Executing in kernel space\n");
 
-    while (1) asm("hlt");
+    PROC_init();
+    PROC_create_kthread(thread, "A");
+    PROC_create_kthread(thread, "B");
+
+    while(1) {
+        PROC_run();
+        printk("Back to kmain!\n");
+    }
+
+    // while (1) asm ("hlt");
 }

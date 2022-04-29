@@ -1,4 +1,34 @@
 extern irq_handler
+extern curr_proc
+extern next_proc
+
+struc rf
+    ._rax:  resq 1
+    ._rbx:  resq 1
+    ._rcx:  resq 1
+    ._rdx:  resq 1
+    ._rdi:  resq 1
+    ._rsi:  resq 1
+    ._r8:   resq 1
+    ._r9:   resq 1
+    ._r10:  resq 1
+    ._r11:  resq 1
+    ._r12:  resq 1
+    ._r13:  resq 1
+    ._r14:  resq 1
+    ._r15:  resq 1
+    ._cs:   resw 1
+    ._ss:   resw 1
+    ._ds:   resw 1
+    ._es:   resw 1
+    ._fs:   resw 1
+    ._gs:   resw 1
+    ._pad:  resd 1
+    ._rbp:  resq 1
+    ._rsp:  resq 1
+    ._rip:  resq 1
+    ._rflags:   resq 1
+endstruc
 
 %macro ISR_WRAPPER 1
 global isr_wrapper_%1
@@ -20,6 +50,9 @@ isr_wrapper_%1:
     jmp isr_generic
 %endmacro
 
+section .data
+kt_off: equ 0xffff800000000000
+
 section .text
 bits 64
 
@@ -28,24 +61,132 @@ isr_generic:
     ; expects rdi and rsi already pushed;
     ; rsi at top of stack
 
-    ; push rest of scratch registers
+    ; push rest of registers
     push rax
+    push rbx
     push rcx
     push rdx
     push r8
     push r9
     push r10
     push r11
+    push r12
+    push r13
+    push r14
+    push r15
 
     call irq_handler
 
+    ; check if next process equals current process
+    mov rax, [curr_proc]
+    mov rbx, [next_proc]
+    cmp rax, rbx
+    je .no_context_switch
+
+.context_save:
+    ; current process != next process, perform context switch
+    ; save current context into current_process
+    pop rdx
+    mov [rax + rf._r15], rdx
+    pop rdx
+    mov [rax + rf._r14], rdx
+    pop rdx
+    mov [rax + rf._r13], rdx
+    pop rdx
+    mov [rax + rf._r12], rdx
+    pop rdx
+    mov [rax + rf._r11], rdx
+    pop rdx
+    mov [rax + rf._r10], rdx
+    pop rdx
+    mov [rax + rf._r9], rdx
+    pop rdx
+    mov [rax + rf._r8], rdx
+    pop rdx
+    mov [rax + rf._rdx], rdx
+    pop rdx
+    mov [rax + rf._rcx], rdx
+    pop rdx
+    mov [rax + rf._rbx], rdx
+    pop rdx
+    mov [rax + rf._rax], rdx
+    pop rdx
+    mov [rax + rf._rsi], rdx
+    pop rdx
+    mov [rax + rf._rdi], rdx
+
+    ; get data from isr stack
+    mov rdx, [rsp]
+    mov [rax + rf._rip], rdx
+    mov dx, [rsp + 8]
+    mov [rax + rf._cs], dx
+    mov rdx, [rsp + 16]
+    mov [rax + rf._rflags], rdx
+    mov rdx, [rsp + 24]
+    mov [rax + rf._rsp], rdx
+    mov dx, [rsp + 32]
+    mov [rax + rf._ss], dx
+
+    ; segment registers
+    mov [rax + rf._ds], ds
+    mov [rax + rf._es], es
+    mov [rax + rf._fs], fs
+    mov [rax + rf._gs], gs
+
+    ; set current proc to next proc
+    mov [curr_proc], rbx
+
+.context_load:
+    ; load the context from next_process
+    ; overwrite isr stack
+    mov rdx, [rbx + rf._rip]
+    mov [rsp], rdx
+    mov dx, [rbx + rf._cs]
+    mov [rsp + 8], dx
+    mov rdx, [rbx + rf._rflags]
+    mov [rsp + 16], rdx
+    mov rdx, [rbx + rf._rsp]
+    mov [rsp + 24], rdx
+    mov dx, [rbx + rf._ss]
+    mov [rsp + 32], dx
+
+    ; load registers
+    mov rax, [rbx + rf._rax]
+    mov rcx, [rbx + rf._rcx]
+    mov rdx, [rbx + rf._rdx]
+    mov rsi, [rbx + rf._rsi]
+    mov rdi, [rbx + rf._rdi]
+    mov r8, [rbx + rf._r8]
+    mov r9, [rbx + rf._r9]
+    mov r10, [rbx + rf._r10]
+    mov r11, [rbx + rf._r11]
+    mov r12, [rbx + rf._r12]
+    mov r13, [rbx + rf._r13]
+    mov r14, [rbx + rf._r14]
+    mov r15, [rbx + rf._r15]
+    mov ds, [rbx + rf._ds]
+    mov es, [rbx + rf._es]
+    mov fs, [rbx + rf._fs]
+    mov gs, [rbx + rf._gs]
+    mov rbx, [rbx + rf._rbx]
+
+.context_switch:
+    ; ready to run next_proc on iretq
+    iretq
+
+.no_context_switch:
     ; restore scratch registers
+    pop r15
+    pop r14
+    pop r13
+    pop r12
     pop r11
     pop r10
     pop r9
     pop r8
     pop rdx
     pop rcx
+    pop rbx
     pop rax
     pop rsi
     pop rdi

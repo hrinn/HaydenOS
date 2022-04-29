@@ -120,3 +120,7 @@ void TSS_remap(virtual_addr_t *stack_tops, int n) {
         tss.ist[i] = stack_tops[i];
     }
 }
+
+void TSS_set_ist(virtual_addr_t stack_top, int ist) {
+    tss.ist[ist - 1] = stack_top;
+}

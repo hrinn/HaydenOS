@@ -559,7 +559,7 @@ void remap_elf_sections(page_table_t *pml4) {
             if (!(current->flags & ELF_EXEC_FLAG)) flags |= PAGE_NO_EXECUTE;
 
             map_range(pml4, current->segment_address, KERNEL_TEXT_START + current->segment_address, current->segment_size, flags);
-            printk("Mapped %s to 0x%lx (%lx)\n", get_elf_section_name(current->section_name_index), KERNEL_TEXT_START + current->segment_address, current->flags);
+            printk("Mapped %s to 0x%lx\n", get_elf_section_name(current->section_name_index), KERNEL_TEXT_START + current->segment_address);
         }
     }
 }

@@ -6,6 +6,7 @@
 void GDT_remap(void);
 void TSS_init(void);
 void TSS_remap(virtual_addr_t *stack_tops, int n);
+void TSS_set_ist(virtual_addr_t stack_top, int ist);
 
 // Offsets
 #define KERNEL_CODE_OFFSET 0x8

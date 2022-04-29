@@ -4,6 +4,7 @@
 #include "registers.h"
 #include "ioport.h"
 #include "gdt.h"
+#include "proc.h"
 
 // Interrupt configuration
 #define INTERRUPT_GATE 0xE
@@ -62,7 +63,7 @@ static struct {
 } irq_handler_table[NUM_IDT_ENTRIES];
 
 // IRQ name table
-char *irq_name_table[32] = {
+static char *irq_name_table[32] = {
     "Divide-By-Zero-Error", "Debug", "Non-Maskable-Interrupt", "Breakpoint",
     "Overflow", "Bound-Range", "Invalid-Opcode", "Device-Not-Available",
     "Double-Fault", "Coprocessor-Segment-Overrun (Unsupported)", "Invalid-TSS",
@@ -73,6 +74,8 @@ char *irq_name_table[32] = {
     "Hypervisor Injection Exception", "VMM Communication Exception", 
     "Security Exception", "Reserved"
 };
+
+static virtual_addr_t kernel_text_offset;
 
 void irq_handler(uint8_t irq, uint32_t error_code) {
     if (irq_handler_table[irq].handler) {
@@ -128,6 +131,9 @@ void apply_isr_offset(uint64_t offset) {
             irq_handler_table[i].handler += offset;
         }
     }
+
+    // Set the text offset so that all future install handlers will be correct
+    kernel_text_offset = offset;
 }
 #pragma GCC diagnostic pop
 
@@ -166,10 +172,11 @@ void IRQ_init() {
         set_idt_entry(i);
     }
 
-    // Set separate ISTs for DF, PF, GF
+    // Set separate ISTs for DF, PF, GF, and kexit interrupt
     idt[DOUBLE_FAULT].ist = 1;
     idt[PAGE_FAULT].ist = 2;
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
+    idt[KEXIT_IRQ].ist = KEXIT_IST;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);
@@ -235,6 +242,6 @@ void IRQ_end_of_interrupt(uint8_t irq_line) {
 }
 
 void IRQ_set_handler(uint8_t irq, irq_handler_t handler, void *arg) {
-    irq_handler_table[irq].handler = handler;
+    irq_handler_table[irq].handler = (irq_handler_t)(((virtual_addr_t)handler) + kernel_text_offset);
     irq_handler_table[irq].arg = arg;
 }
