@@ -4,6 +4,9 @@
 #include <stdint-gcc.h>
 #include "registers.h"
 
+#define CLI asm volatile ("cli")
+#define STI asm volatile ("sti")
+
 typedef void (*irq_handler_t)(uint8_t irq, uint32_t error_code, void *arg);
 
 // IRQ Interface
