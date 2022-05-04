@@ -74,6 +74,6 @@ void kmain_3(void *arg) {
 void keyboard_printer(void *arg) {
     printk("Keyboard input:\n");
     while (1) {
-        printk("%c", KBD_read());
+        printk("%c", getc());
     }
 }

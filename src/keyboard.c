@@ -266,7 +266,7 @@ int KBD_init() {
 }
 
 // Blocking function
-char KBD_read() {
+char getc() {
     char chr;
     wait_event_interruptable(&keyb.blocked, is_buffer_empty(&keyb.circ_buff));
 

@@ -7,7 +7,7 @@ static proc_queue_t queue;
 static process_t *next;
 
 // Adds a thread to the schedule
-void rr_admit(process_t *thread) {
+void sched_admit(process_t *thread) {
     if (queue.head == NULL) {
         next = thread;
     }
@@ -32,7 +32,7 @@ process_t *rr_next() {
 }
 
 // Removes a thread from the schedule
-void rr_remove(process_t *thread) {
+void sched_remove(process_t *thread) {
     if (thread == next) {
         if (thread == queue.tail && thread == queue.head) {
             next = NULL;

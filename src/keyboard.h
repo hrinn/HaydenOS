@@ -2,6 +2,6 @@
 #define KEYBOARD_H
 
 int KBD_init();
-char KBD_read();
+char getc();
 
 #endif

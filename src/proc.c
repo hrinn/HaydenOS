@@ -79,7 +79,7 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     context->regfile.rflags |= (IE_FLAG | RES_FLAG);
 
     // Add this context to the scheduler
-    rr_admit(context);
+    sched_admit(context);
     return context;
 }
 
@@ -94,7 +94,7 @@ void kexit_isr(uint8_t irq, unsigned int error_code, void *arg) {
     free_thread_stack(curr_proc->stack_top);
 
     // Deschedule the thread
-    rr_remove(curr_proc);
+    sched_remove(curr_proc);
 
     // Deallocate the thread context
     kfree(curr_proc);
@@ -108,7 +108,7 @@ void kexit_isr(uint8_t irq, unsigned int error_code, void *arg) {
 void PROC_block_on(proc_queue_t *queue, int enable_ints) {
     if (!queue) return;
 
-    rr_remove(curr_proc);   // Deschedule the current proc
+    sched_remove(curr_proc);   // Deschedule the current proc
     append_proc(curr_proc, queue);
     if (enable_ints) STI;
 
@@ -121,7 +121,7 @@ void PROC_unblock_all(proc_queue_t *queue) {
     if (!queue) return;
 
     while ((current = pop_proc(queue)) != NULL) {
-        rr_admit(current);
+        sched_admit(current);
     }
 
     yield(); // Context switch
@@ -133,7 +133,7 @@ void PROC_unblock_head(proc_queue_t *queue) {
     if (!queue) return;
 
     current = pop_proc(queue);
-    if (current != NULL) rr_admit(current);
+    if (current != NULL) sched_admit(current);
 
     yield(); // Context switch
 }
