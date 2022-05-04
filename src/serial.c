@@ -5,9 +5,9 @@
 #include "registers.h"
 #include <stddef.h>
 #include <stdint-gcc.h>
+#include "circ_buff.h"
 
 #define COM1 0x3F8
-#define BUFF_SIZE 128
 #define HW_BUFF_SIZE 14
 #define SERIAL_IRQ 36
 #define SERIAL_INT_LINE 4
@@ -20,68 +20,25 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg);
 
 typedef enum {IDLE, BUSY} hw_status_t;
 
-// State of circular buffer
-typedef struct {
-    char buff[BUFF_SIZE + 1]; // 1 byte is wasted to differentiate b/t empty and full
-    char *head;
-    char *tail;
-    hw_status_t status;
-} state_t;
-
-static state_t uart_state;
+static buff_state_t state;
+static hw_status_t status;
+static uint64_t text_offset;
 
 void SER_kspace_offset(uint64_t offset) {
-    uart_state.head += offset;
-    uart_state.tail += offset;
-}
-
-// Initializes circular buffer state
-void init_state(state_t *state) {
-    state->head = &state->buff[0];
-    state->tail = &state->buff[0];
+    state.write_head += offset;
+    state.read_head += offset;
+    text_offset = offset;
 }
 
 // Writes a byte to the UART
-static inline void TX_byte(uint8_t data) {
+void TX_byte(char data) {
     outb(COM1, data);
-}
-
-// Consumes a char from the circular buffer
-// Writes this char to the UART
-// Returns 1 on success, 0 if nothing to read
-int consumer_read(state_t *state) {
-    if (state->head == state->tail) {
-        return 0;
-    }
-
-    TX_byte(*state->head++);
-    if (state->head >= &state->buff[BUFF_SIZE]) {
-        state->head = &state->buff[0];
-    }
-
-    return 1;
-}
-
-// Writes a char to the circular buffer
-// Returns 1 on success, 0 if buffer full
-int producer_write(char c, state_t *state) {
-    if (state->head == state->tail + 1 || 
-        (state->head == &state->buff[0] && state->tail == &state->buff[BUFF_SIZE - 1])) {
-        return 0;
-    }
-
-    *state->tail++ = c;
-    if (state->tail >= &state->buff[BUFF_SIZE]) {
-        state->tail = &state->buff[0];
-    }
-
-    return 1;
 }
 
 // Initializes state and UART
 // Returns 1 on success, -1 on failure
 int SER_init(void) {
-    init_state(&uart_state);
+    init_buff(&state);
 
     // Disable all UART interrupts
     outb(COM1 + 1, 0x00);   
@@ -114,13 +71,13 @@ int is_tx_empty() {
 }
 
 // Reads from the buffer of characters
-void init_hw_write(state_t *state) {
+void init_hw_write() {
     int i = 0;
 
-    if (state->status == IDLE) {
+    if (status == IDLE) {
         // Write up to 14 bytes the internal hardware buffer
-        while (i < HW_BUFF_SIZE && consumer_read(state)) i++;
-        if (i > 0) state->status = BUSY;
+        while (i < HW_BUFF_SIZE && consumer_read(&state, (consumer_t)(((uint64_t)TX_byte) + text_offset))) i++;
+        if (i > 0) status = BUSY;
     }
     
     // We are either done or waiting for a TX empty interrupt
@@ -134,15 +91,15 @@ int SER_write(const char *buff, int len) {
     if (int_en) cli();
 
     while (buff[i] && i < len) {
-        if (producer_write(buff[i], &uart_state)) {
+        if (producer_write(buff[i], &state)) {
             i++;
         } else {
             // Buffer was full
-            init_hw_write(&uart_state);
+            init_hw_write();
         }
     }
     
-    init_hw_write(&uart_state);
+    init_hw_write();
     if (int_en) sti();
     return len;
 }
@@ -154,8 +111,8 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
     // Check interrupt type
     switch (inb(COM1 + 2) & IIR_ID_MASK) {
         case IIR_TX_EMPTY:      // Transmit
-            uart_state.status = IDLE;
-            init_hw_write(&uart_state);
+            status = IDLE;
+            init_hw_write();
             break;
         case IIR_LINE_STATUS:   // Read line status register
             inb(COM1 + 5);

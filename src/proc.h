@@ -3,6 +3,7 @@
 
 #include <stdint-gcc.h>
 #include "memdef.h"
+#include "proc_queue.h"
 
 typedef void (*kproc_t)(void *);
 
@@ -32,19 +33,27 @@ struct regfile {
     uint64_t rflags;
 };
 
-typedef struct Process {
+typedef struct Process process_t;
+struct Process {
     struct regfile regfile;
     int pid;
     virtual_addr_t stack_top;
-    struct Process *sched_next;
-} process_t;
-
+    process_t *next;
+    process_t *prev;
+};
 
 extern process_t *curr_proc;
 extern process_t *next_proc;
 
+// Basic process management
 void PROC_init(void);
 void PROC_run(void);
-struct Process *PROC_create_kthread(kproc_t entry_point, void *arg);
+process_t *PROC_create_kthread(kproc_t entry_point, void *arg);
+
+// Blocking process management
+// void PROC_block_on(proc_queue_t *, int enable_ints);
+// void PROC_unblock_all(proc_queue_t *);
+// void PROC_unblock_head(proc_queue_t *);
+void PROC_init_queue(proc_queue_t *);
 
 #endif

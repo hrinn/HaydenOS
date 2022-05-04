@@ -9,6 +9,8 @@
 #include "proc.h"
 #include "snakes.h"
 #include "test.h"
+#include "proc_queue.h"
+#include <stddef.h>
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -55,7 +57,7 @@ void kmain_stage2() {
     // Tests
     // test_page_alloc();
     // test_kmalloc();
-    test_snakes();
+    test_snakes();    
 
     HALT_LOOP;
 }

@@ -61,4 +61,5 @@ void test_kmalloc() {
 void test_snakes() {
     setup_snakes(1);
     PROC_run();
+    printk("Back to kmain!\n");
 }

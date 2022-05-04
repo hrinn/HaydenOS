@@ -75,6 +75,7 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     context->regfile.rip = ((uint64_t)entry_point) + KERNEL_TEXT_START;
     context->regfile.rdi = (uint64_t)arg;
     context->regfile.cs = KERNEL_CODE_OFFSET;
+    context->regfile.ss = 0;
     context->regfile.rflags |= (IE_FLAG | RES_FLAG);
 
     // Add this context to the scheduler
@@ -100,4 +101,44 @@ void kexit_isr(uint8_t irq, unsigned int error_code, void *arg) {
 
     // Runs the scheduler to pick another process
     PROC_reschedule();
+}
+
+// Blocking process management
+
+void PROC_block_on(proc_queue_t *queue, int enable_ints) {
+    if (!queue) return;
+
+    rr_remove(curr_proc);   // Deschedule the current proc
+    append_proc(curr_proc, queue);
+    if (enable_ints) STI;
+
+    yield(); // Context switch
+}
+
+void PROC_unblock_all(proc_queue_t *queue) {
+    process_t *current;
+
+    if (!queue) return;
+
+    while ((current = pop_proc(queue)) != NULL) {
+        rr_admit(current);
+    }
+
+    yield(); // Context switch
+}
+
+void PROC_unblock_head(proc_queue_t *queue) {
+    process_t *current;
+
+    if (!queue) return;
+
+    current = pop_proc(queue);
+    if (current != NULL) rr_admit(current);
+
+    yield(); // Context switch
+}
+
+void PROC_init_queue(proc_queue_t *queue) {
+    queue->head = NULL;
+    queue->tail = NULL;
 }
