@@ -2,6 +2,7 @@
 #define CIRC_BUFF_H
 
 #include <stdint-gcc.h>
+#include <stdbool.h>
 
 #define BUFF_SIZE 64
 
@@ -12,10 +13,10 @@ struct buff_state {
     char *write_head;
 };
 
-typedef void (*consumer_t)(char);
 
 void init_buff(buff_state_t *);
-int consumer_read(buff_state_t *, consumer_t);
+int consumer_read(buff_state_t *, char *);
 int producer_write(char, buff_state_t *);
+bool is_buffer_empty(buff_state_t *);
 
 #endif

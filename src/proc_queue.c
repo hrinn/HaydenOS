@@ -50,7 +50,7 @@ process_t *pop_proc(proc_queue_t *queue) {
 
     temp = queue->head;
     queue->head = temp->next;
-    queue->head->prev = NULL;
+    if (queue->head != NULL) queue->head->prev = NULL;
 
     temp->next = NULL;
     temp->prev = NULL;

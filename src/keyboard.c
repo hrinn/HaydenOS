@@ -6,6 +6,9 @@
 #include "ioport.h"
 #include "debug.h"
 #include "irq.h"
+#include "proc.h"
+#include "proc_queue.h"
+#include "circ_buff.h"
 
 // I/O Port Addresses
 #define PS2_STATUS 0x64
@@ -121,9 +124,15 @@ enum key {nokey, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, \
 static char ascii[] = "\0abcdefghijklmnopqrstuvwxyz1234567890`-=\\\b \t\n[];\',./";
 static char ASCII[] = "\0ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()~_+|\b \t\n{}:\"<>?";
 
-// Arrays for tracking key states
-static uint8_t mod_state;
-static uint64_t key_state;
+// Keyboard state variables
+typedef struct keyb_state {
+    proc_queue_t blocked;
+    buff_state_t circ_buff;
+    uint8_t mod_state;
+    uint64_t key_state;
+} keyb_state_t;
+
+static keyb_state_t keyb;
 
 // Macros for accessing bits of state ints
 #define SET_BIT(I, k) (I |= (1 << k))
@@ -235,7 +244,7 @@ int init_ps2_keyboard() {
     return 1;
 }
 
-int keyboard_init() {
+int KBD_init() {
     int res;
     if ((res = init_ps2_controller()) != 1) {
         return res;
@@ -243,17 +252,40 @@ int keyboard_init() {
     if ((res = init_ps2_keyboard()) != 1) {
         return res;
     }
+    // Initialize blocking queue
+    PROC_init_queue(&keyb.blocked);
+
+    // Initialize circular buffer
+    init_buff(&keyb.circ_buff);
+
     // Initialize interrupts
     IRQ_set_handler(KEYBOARD_IRQ, keyboard_handler, NULL);
     IRQ_clear_mask(KEYBOARD_INT_LINE);
+
     return 1;
 }
 
-static bool release = false;
+// Blocking function
+char KBD_read() {
+    char chr;
+    wait_event_interruptable(&keyb.blocked, is_buffer_empty(&keyb.circ_buff));
 
-char read_keyboard() {
+    // Data in circular buffer
+    consumer_read(&keyb.circ_buff, &chr);
+    return chr;
+}
+
+// static bool release = false;
+
+void keyboard_handler(
+    __attribute__((unused)) uint8_t irq, 
+    __attribute__((unused)) uint32_t error_code, 
+    __attribute__((unused)) void *arg) 
+{
     enum key key = nokey;
     enum modifier mod = nomod;
+    static bool release = false;
+    char chr;
 
     switch (inb(PS2_DATA)) {
         case SC_BREAK:
@@ -368,40 +400,31 @@ char read_keyboard() {
             mod = alt; break;
         case SC_RSHFT:
             mod = shift; break;
-        default: // Unsupported interrupt
-            return '\0';
+        default: break; // unsupported key
     }
 
     if (key != nokey) {
         if (release) {
             release = false;
-            CLEAR_BIT(key_state, key);
+            CLEAR_BIT(keyb.key_state, key);
         } else {
-            SET_BIT(key_state, key);
-            // Return character after finished key sequence
-            return TEST_BIT(mod_state, shift) ? ASCII[key] : ascii[key];
+            SET_BIT(keyb.key_state, key);
+            // Character ready, add to circular buffer
+            chr = TEST_BIT(keyb.mod_state, shift) ? ASCII[key] : ascii[key];
+            producer_write(chr, &keyb.circ_buff);
+            // Unblock process waiting to ready
+            PROC_unblock_head(&keyb.blocked);
         }
     }     
 
     if (mod != nomod) {
         if (release) {
             release = false;
-            CLEAR_BIT(mod_state, mod);
+            CLEAR_BIT(keyb.mod_state, mod);
         } else {
-            SET_BIT(mod_state, mod);
+            SET_BIT(keyb.mod_state, mod);
         }
     }
 
-    // No character ready
-    return '\0';
-}
-
-void keyboard_handler(
-    __attribute__((unused)) uint8_t irq, 
-    __attribute__((unused)) uint32_t error_code, 
-    __attribute__((unused)) void *arg) 
-{
-    char c = read_keyboard();
-    if (c != '\0') printk("%c", c);
     IRQ_end_of_interrupt(KEYBOARD_INT_LINE);
 }

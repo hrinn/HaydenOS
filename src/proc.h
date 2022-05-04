@@ -4,6 +4,7 @@
 #include <stdint-gcc.h>
 #include "memdef.h"
 #include "proc_queue.h"
+#include "irq.h"
 
 typedef void (*kproc_t)(void *);
 
@@ -51,9 +52,18 @@ void PROC_run(void);
 process_t *PROC_create_kthread(kproc_t entry_point, void *arg);
 
 // Blocking process management
-// void PROC_block_on(proc_queue_t *, int enable_ints);
-// void PROC_unblock_all(proc_queue_t *);
-// void PROC_unblock_head(proc_queue_t *);
+void PROC_block_on(proc_queue_t *, int enable_ints);
+void PROC_unblock_all(proc_queue_t *);
+void PROC_unblock_head(proc_queue_t *);
 void PROC_init_queue(proc_queue_t *);
+
+#define wait_event_interruptable(wait_queue, condition) {\
+    CLI;\
+    while (condition) {\
+        PROC_block_on(wait_queue, 1);\
+        CLI;\
+    }\
+    STI;\
+}
 
 #endif

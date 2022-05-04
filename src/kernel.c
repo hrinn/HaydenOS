@@ -7,14 +7,13 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include "snakes.h"
-#include "test.h"
-#include "proc_queue.h"
 #include <stddef.h>
 
 #define HALT_LOOP while(1) asm("hlt")
 
-void kmain_stage2(void);
+void kmain_2(void);
+void kmain_3(void *);
+void keyboard_printer(void *);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpointer-arith"
@@ -42,22 +41,39 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Switch execution to kernel space
     asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    (kmain_stage2 + KERNEL_TEXT_START)();
+    (kmain_2 + KERNEL_TEXT_START)();
 }
 #pragma GCC diagnostic pop
 
-void kmain_stage2() {
+void kmain_2() {
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
-    
-    printk("Executing in kernel space\n");
+
     PROC_init();
+    PROC_create_kthread(kmain_3, NULL);
+    PROC_create_kthread(keyboard_printer, NULL);
 
-    // Tests
-    // test_page_alloc();
-    // test_kmalloc();
-    test_snakes();    
+    while (1) {
+        PROC_run();
+        asm ("hlt");
+    }
+}
 
-    HALT_LOOP;
+void kmain_3(void *arg) {
+    printk("Executing in kthread\n");
+
+    KBD_init();
+    
+    while (1) {
+        yield();
+        asm ("hlt");
+    }
+}
+
+void keyboard_printer(void *arg) {
+    printk("Keyboard input:\n");
+    while (1) {
+        printk("%c", KBD_read());
+    }
 }

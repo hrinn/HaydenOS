@@ -22,12 +22,10 @@ typedef enum {IDLE, BUSY} hw_status_t;
 
 static buff_state_t state;
 static hw_status_t status;
-static uint64_t text_offset;
 
 void SER_kspace_offset(uint64_t offset) {
     state.write_head += offset;
     state.read_head += offset;
-    text_offset = offset;
 }
 
 // Writes a byte to the UART
@@ -73,10 +71,14 @@ int is_tx_empty() {
 // Reads from the buffer of characters
 void init_hw_write() {
     int i = 0;
+    char c;
 
     if (status == IDLE) {
         // Write up to 14 bytes the internal hardware buffer
-        while (i < HW_BUFF_SIZE && consumer_read(&state, (consumer_t)(((uint64_t)TX_byte) + text_offset))) i++;
+        while (i < HW_BUFF_SIZE && consumer_read(&state, &c)) {
+            TX_byte(c);
+            i++;
+        } 
         if (i > 0) status = BUSY;
     }
     
