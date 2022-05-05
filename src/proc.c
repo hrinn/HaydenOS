@@ -61,6 +61,11 @@ void PROC_reschedule(void) {
     }
 }
 
+void kthread_wrapper(kproc_t entry_point, void *arg) {
+    entry_point(arg);
+    kexit();
+}
+
 // Adds a new thread to the multitasking system
 struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     process_t *context = (process_t *)kcalloc(1, sizeof(process_t));
@@ -71,8 +76,9 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     context->pid = pid++;
     context->regfile.rbp = context->stack_top;
     context->regfile.rsp = context->stack_top;
-    context->regfile.rip = ((uint64_t)entry_point) + KERNEL_TEXT_START;
-    context->regfile.rdi = (uint64_t)arg;
+    context->regfile.rip = ((uint64_t)kthread_wrapper) + KERNEL_TEXT_START;
+    context->regfile.rdi = ((uint64_t)entry_point) + KERNEL_TEXT_START;
+    context->regfile.rsi = (uint64_t)arg;
     context->regfile.cs = KERNEL_CODE_OFFSET;
     context->regfile.ss = 0;
     context->regfile.rflags |= (IE_FLAG | RES_FLAG);

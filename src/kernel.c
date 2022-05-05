@@ -63,11 +63,7 @@ void kmain_2() {
 
     init_sys_calls();
     PROC_init();
-    // PROC_create_kthread(thread, "hi");
-    // PROC_create_kthread(thread, "bye");
-    setup_snakes(1);
-    // PROC_create_kthread(kmain_3, NULL);
-    // PROC_create_kthread(keyboard_printer, NULL);
+    PROC_create_kthread(kmain_3, NULL);
 
     while (1) {
         PROC_run();
@@ -80,6 +76,7 @@ void kmain_3(void *arg) {
     printk("Executing in kthread\n");
 
     KBD_init();
+    PROC_create_kthread(keyboard_printer, NULL);
     
     while (1) {
         yield();

@@ -4,48 +4,53 @@
 #include "proc_queue.h"
 
 static proc_queue_t queue;
-static process_t *next;
+static process_t *current;
 
 // Adds a thread to the schedule
 void sched_admit(process_t *thread) {
-    if (queue.head == NULL) {
-        next = thread;
-    }
     append_proc(thread, &queue);
 }
 
-// Selects the next thread to run
+// Selects the next thread to run in a round robin scheduler
 process_t *rr_next() {
-    process_t *temp;
-
-    if (next == NULL) return NULL;
-
-    temp = next;
-    
-    if (next == queue.tail) {
-        next = queue.head;
+    // Iterate and return current
+    if (current == NULL || current == queue.tail) {
+        current = queue.head;
     } else {
-        next = next->next;
+        current = current->next;
     }
 
-    return temp;
+    return current;
 }
+
+// Selects the next thread to run in a FIFO scheduler
+process_t *fifo_next() {
+    if (current == NULL) {
+        current = queue.head;
+    }
+
+    return current;
+}
+
+process_t *fifo_peek() {
+    if (current == NULL) {
+        return queue.head;
+    }
+    return current;
+} 
 
 // Removes a thread from the schedule
 void sched_remove(process_t *thread) {
-    if (thread == next) {
-        if (thread == queue.tail && thread == queue.head) {
-            next = NULL;
-        } else if (thread == queue.tail) {
-            next = queue.head;
-        } else {
-            next = thread->next;
-        }
+    if (thread == current) {
+        current = thread->prev;
     }
     remove_proc(thread, &queue);
 }
 
 // Returns a pointer to the next thread
 process_t *rr_peek() {
-    return next;
+    if (current == NULL || current == queue.tail) {
+        return queue.head;
+    }
+    return current->next;
 }
