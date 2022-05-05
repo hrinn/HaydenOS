@@ -15,7 +15,7 @@ void yield_sys_call();
 void kexit_sys_call();
 
 static int pid = 1;
-static process_t *orig_proc;
+static process_t orig_proc;
 process_t *curr_proc;
 process_t *next_proc;
 
@@ -29,8 +29,8 @@ void PROC_init(void) {
 void PROC_run(void) {
     uint16_t int_en = check_int();
     if (int_en) cli();
-    curr_proc = NULL;
-    next_proc = NULL;
+    curr_proc = &orig_proc;
+    next_proc = &orig_proc;
 
     if (rr_peek() == NULL) {
         // There were no threads in the scheduler
@@ -38,26 +38,17 @@ void PROC_run(void) {
         return;
     }
 
-    // Setup an original process and set it as the current process
-    // On interrupt, the current process's context will be saved
-    orig_proc = (process_t *)kmalloc(sizeof(process_t));
-    orig_proc->pid = 0;
-    curr_proc = orig_proc;
-
     if (int_en) sti();
     // This yield runs on its own stack so it will first generated a page fault
     // Returning from this page fault 
     yield();
-
-    // Return to here means all threads have exited
-    kfree(orig_proc);
 }
 
 void PROC_reschedule(void) {
     next_proc = rr_next();
 
     if (next_proc == NULL) {
-        next_proc = orig_proc;
+        next_proc = &orig_proc;
     }
 }
 

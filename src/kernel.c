@@ -13,8 +13,8 @@
 
 #define HALT_LOOP while(1) asm("hlt")
 
-void kmain_2(void);
-void kmain_3(void *);
+void kmain_vspace(void);
+void kmain_thread(void *);
 void keyboard_printer(void *);
 
 #pragma GCC diagnostic push
@@ -43,45 +43,31 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Switch execution to kernel space
     asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    (kmain_2 + KERNEL_TEXT_START)();
+    (kmain_vspace + KERNEL_TEXT_START)();
 }
 #pragma GCC diagnostic pop
 
-void thread(void *str) {
-    int i;
-    for (i = 0; i < 5; i++) {
-        printk("thread %s\n", (char *)str);
-        yield();
-    }
-    kexit();
-}
-
-void kmain_2() {
+void kmain_vspace() {
+    // Apply DATA REL offsets
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
 
     init_sys_calls();
     PROC_init();
-    PROC_create_kthread(kmain_3, NULL);
+    // PROC_create_kthread(kmain_thread, NULL);
+    setup_snakes(1);
 
     while (1) {
         PROC_run();
-        printk("Back to kmain!\n");
         asm ("hlt");
     }
 }
 
-void kmain_3(void *arg) {
+void kmain_thread(void *arg) {
     printk("Executing in kthread\n");
-
     KBD_init();
     PROC_create_kthread(keyboard_printer, NULL);
-    
-    while (1) {
-        yield();
-        asm ("hlt");
-    }
 }
 
 void keyboard_printer(void *arg) {

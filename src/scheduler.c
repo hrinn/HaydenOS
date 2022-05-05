@@ -37,7 +37,7 @@ process_t *fifo_peek() {
         return queue.head;
     }
     return current;
-} 
+}
 
 // Removes a thread from the schedule
 void sched_remove(process_t *thread) {
