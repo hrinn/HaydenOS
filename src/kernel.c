@@ -8,6 +8,8 @@
 #include "mmu.h"
 #include "proc.h"
 #include <stddef.h>
+#include "snakes.h"
+#include "sys_call.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -45,17 +47,31 @@ void kmain(struct multiboot_info *multiboot_tags) {
 }
 #pragma GCC diagnostic pop
 
+void thread(void *str) {
+    int i;
+    for (i = 0; i < 5; i++) {
+        printk("thread %s\n", (char *)str);
+        yield();
+    }
+    kexit();
+}
+
 void kmain_2() {
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
 
+    init_sys_calls();
     PROC_init();
-    PROC_create_kthread(kmain_3, NULL);
-    PROC_create_kthread(keyboard_printer, NULL);
+    // PROC_create_kthread(thread, "hi");
+    // PROC_create_kthread(thread, "bye");
+    setup_snakes(1);
+    // PROC_create_kthread(kmain_3, NULL);
+    // PROC_create_kthread(keyboard_printer, NULL);
 
     while (1) {
         PROC_run();
+        printk("Back to kmain!\n");
         asm ("hlt");
     }
 }

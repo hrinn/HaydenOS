@@ -85,7 +85,9 @@ isr_generic:
     mov rax, [curr_proc]
     mov rbx, [next_proc]
     cmp rax, rbx
-    je .no_context_switch
+    je .no_context_switch   ; not schedule change has been made
+    cmp rbx, 0
+    je .no_context_switch   ; next process has not been scheduled yet
 
 .context_save:
     ; current process != next process, perform context switch

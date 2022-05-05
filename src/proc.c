@@ -8,12 +8,11 @@
 #include "gdt.h"
 #include "printk.h"
 
-#define YIELD_IRQ 206
 #define IE_FLAG 0x200
 #define RES_FLAG 0x2
 
-void yield_isr(uint8_t, unsigned int, void *);
-void kexit_isr(uint8_t, unsigned int, void *);
+void yield_sys_call();
+void kexit_sys_call();
 
 static int pid = 1;
 static process_t *orig_proc;
@@ -22,10 +21,8 @@ process_t *next_proc;
 
 // Initializes the multitasking system
 void PROC_init(void) {
-    // Setup a stack for the kexit ISR in the TSS
-    TSS_set_ist(allocate_thread_stack(), KEXIT_IST);
-    IRQ_set_handler(YIELD_IRQ, yield_isr, NULL);
-    IRQ_set_handler(KEXIT_IRQ, kexit_isr, NULL);
+    set_sys_call(YIELD_SYS_CALL, yield_sys_call);
+    set_sys_call(KEXIT_SYS_CALL, kexit_sys_call);
 }
 
 // Drives the multitasking system
@@ -48,6 +45,8 @@ void PROC_run(void) {
     curr_proc = orig_proc;
 
     if (int_en) sti();
+    // This yield runs on its own stack so it will first generated a page fault
+    // Returning from this page fault 
     yield();
 
     // Return to here means all threads have exited
@@ -84,12 +83,12 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
 }
 
 // Invokes the scheduler and passes control to the next eligible thread
-void yield_isr(uint8_t irq, unsigned int error_code, void *arg) {
+void yield_sys_call() {
     PROC_reschedule();
 }
 
 // Exits and destroys the state of the caller thread
-void kexit_isr(uint8_t irq, unsigned int error_code, void *arg) {
+void kexit_sys_call() {
     // Deallocate the stack
     free_thread_stack(curr_proc->stack_top);
 

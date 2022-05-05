@@ -4,10 +4,11 @@
 #include "registers.h"
 #include "ioport.h"
 #include "gdt.h"
-#include "proc.h"
+#include "sys_call.h"
 
 // Interrupt configuration
 #define INTERRUPT_GATE 0xE
+#define TRAP_GATE 0xF
 #define NUM_IDT_ENTRIES 256
 
 // PIC Ports
@@ -180,11 +181,14 @@ void IRQ_init() {
         set_idt_entry(i);
     }
 
-    // Set separate ISTs for DF, PF, GF, and kexit interrupt
+    // Set separate ISTs for DF, PF, GF, and syscalls
     idt[DOUBLE_FAULT].ist = 1;
     idt[PAGE_FAULT].ist = 2;
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
-    idt[KEXIT_IRQ].ist = KEXIT_IST;
+    idt[SYS_CALL_IRQ].ist = SYS_CALL_IST;
+
+    // Set sys call irq as a trap gate
+    idt[SYS_CALL_IRQ].type = TRAP_GATE;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);

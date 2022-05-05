@@ -5,19 +5,22 @@
 #include "memdef.h"
 #include "proc_queue.h"
 #include "irq.h"
+#include "sys_call.h"
+
+#define YIELD_SYS_CALL 0
+#define KEXIT_SYS_CALL 1
 
 typedef void (*kproc_t)(void *);
 
-#define KEXIT_IRQ 207
-#define KEXIT_IST 4
-
 // Invokes the scheduler and passes control to the next eligible thread
 static inline void yield(void) {
+    sys_call_index = YIELD_SYS_CALL;
     asm volatile ( "INT $206" );
 }
 
 static inline void kexit(void) {
-    asm volatile ( "INT $207" );
+    sys_call_index = KEXIT_SYS_CALL;
+    asm volatile ( "INT $206" );
 }
 
 struct regfile {
