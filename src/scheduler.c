@@ -32,9 +32,9 @@ process_t *fifo_next() {
     return current;
 }
 
-process_t *fifo_peek() {
+process_t *lifo_next() {
     if (current == NULL) {
-        return queue.head;
+        current = queue.tail;
     }
     return current;
 }
@@ -47,10 +47,6 @@ void sched_remove(process_t *thread) {
     remove_proc(thread, &queue);
 }
 
-// Returns a pointer to the next thread
-process_t *rr_peek() {
-    if (current == NULL || current == queue.tail) {
-        return queue.head;
-    }
-    return current->next;
+bool are_procs_scheduled() {
+    return queue.head != NULL;
 }

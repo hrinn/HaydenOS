@@ -32,8 +32,7 @@ void PROC_run(void) {
     curr_proc = &orig_proc;
     next_proc = &orig_proc;
 
-    if (rr_peek() == NULL) {
-        // There were no threads in the scheduler
+    if (!are_procs_scheduled()) {
         if (int_en) sti();
         return;
     }
