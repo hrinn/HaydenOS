@@ -6,9 +6,7 @@ kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loopn := $(shell losetup -a | wc -l)
-loop0 := /dev/loop$(loopn)
-loop1 := /dev/loop$(shell echo $(loopn)+1 | bc)
+loop0 := $(shell losetup -f)
 
 linker_script := src/linker.ld
 grub_cfg := build/img/boot/grub/grub.cfg
@@ -54,22 +52,7 @@ img: $(img)
 iso: $(iso)
 
 $(img): $(kernel) $(grub_cfg)
-	@dd if=/dev/zero of=$(img) bs=512 count=32768
-	@parted $(img) mklabel msdos
-	@parted $(img) mkpart primary fat32 2048s 30720s
-	@parted $(img) set 1 boot on
-	@sudo losetup $(loop0) $(img)
-	@sudo losetup $(loop1) $(img) -o 1MiB
-	@sudo mkdosfs -F32 -f 2 $(loop1)
-	@sudo mkdir /mnt/fatgrub
-	@sudo mount $(loop1) /mnt/fatgrub
-	sudo grub-install --target=i386-pc --root-directory=/mnt/fatgrub --no-floppy \
-	--modules="normal part_msdos ext2 multiboot" $(loop0)
-	@sudo cp -r build/img/* /mnt/fatgrub
-	@sudo umount /mnt/fatgrub
-	@sudo rmdir /mnt/fatgrub
-	@sudo losetup -d $(loop0)
-	@sudo losetup -d $(loop1)
+	@src/img.sh
 
 $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/img 2> /dev/null
