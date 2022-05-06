@@ -268,7 +268,7 @@ void *MMU_alloc_page() {
 
 void *MMU_alloc_pages(int num) {
     int i;
-    void *start_address, *temp;
+    void *start_address = NULL, *temp;
 
     for (i = 0; i < num; i++) {
         temp = MMU_alloc_page();

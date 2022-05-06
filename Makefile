@@ -41,7 +41,7 @@ gdb: run
 release: CFLAGS+=-Os
 release: $(kernel)
 
-run: run_iso
+run: run_img
 
 run_img: $(img)
 	@qemu-system-x86_64 -s -drive format=raw,file=$(img) 
@@ -88,6 +88,6 @@ build/%.o: src/%.asm
 	@nasm -felf64 $< -o $@
 
 # compile c files
-build/%.o: src/%.c
+build/%.o: src/%.c src/*.h
 	@mkdir -p $(shell dirname $@)
 	@$(CC) $(CFLAGS) -c $< -o $@

@@ -218,7 +218,7 @@ int init_ps2_keyboard() {
     // Reset keyboard
     DEBUG_PRINT("Resetting keyboard and starting self test\n");
     if (write_keyboard(CMD_RST_KEYBOARD) != KEYB_ACK) {
-        DEBUG_PRINT("Failed reset and self test\n");
+        printk("init_ps2_keyboard(): Failed reset and self test\n");
         return -3;
     }
 
@@ -226,18 +226,18 @@ int init_ps2_keyboard() {
     DEBUG_PRINT("Setting keyboard to scan code set 2\n");
     if ((resp = write_keyboard(CMD_SET_SCANCODE)) == KEYB_CONT) {
         if ((resp = write_keyboard(SUBCMD_SCANCODE_SET_2)) != KEYB_ACK) {
-            DEBUG_PRINT("Failed to set scan code to set 2, received 0x%x\n", resp);
+            printk("init_ps2_keyboard(): Failed to set scan code to set 2, received 0x%x\n", resp);
             return -5;
         }
     } else {
-        DEBUG_PRINT("Failed to set scan code set, received 0x%x\n", resp);
+        printk("init_ps2_keyboard(): Failed to set scan code set, received 0x%x\n", resp);
         return -4;
     }
 
     // Enable keyboard scanning
     DEBUG_PRINT("Enabling keyboard scanning\n");
     if (write_keyboard(CMD_ENABLE_SCAN) != KEYB_ACK)  {
-        DEBUG_PRINT("Failed to enable scanning\n");
+        printk("init_ps2_keyboard(): Failed to enable scanning\n");
         return -6;
     }
 

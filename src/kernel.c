@@ -7,6 +7,7 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
+#include "block_dev.h"
 #include <stddef.h>
 #include "snakes.h"
 #include "sys_call.h"
@@ -55,8 +56,7 @@ void kmain_vspace() {
 
     init_sys_calls();
     PROC_init();
-    // PROC_create_kthread(kmain_thread, NULL);
-    setup_snakes(1);
+    PROC_create_kthread(kmain_thread, NULL);
 
     while (1) {
         PROC_run();
