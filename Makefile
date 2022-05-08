@@ -42,7 +42,7 @@ release: $(kernel)
 run: run_img
 
 run_img: $(img)
-	@qemu-system-x86_64 -s -drive format=raw,file=$(img) 
+	@qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
 
 run_iso: $(iso)
 	@qemu-system-x86_64 -s -cdrom $(iso) -serial stdio #-soundhw pcspk

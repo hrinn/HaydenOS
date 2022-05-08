@@ -1,5 +1,4 @@
 #include "printk.h"
-#include "keyboard.h"
 #include "vga.h"
 #include "irq.h"
 #include "debug.h"
@@ -8,9 +7,8 @@
 #include "mmu.h"
 #include "proc.h"
 #include "block_dev.h"
-#include <stddef.h>
-#include "snakes.h"
 #include "sys_call.h"
+#include <stddef.h>
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -65,14 +63,9 @@ void kmain_vspace() {
 }
 
 void kmain_thread(void *arg) {
+    ata_block_dev_t *ata_dev;
     printk("Executing in kthread\n");
-    KBD_init();
-    PROC_create_kthread(keyboard_printer, NULL);
-}
 
-void keyboard_printer(void *arg) {
-    printk("Keyboard input:\n");
-    while (1) {
-        printk("%c", getc());
-    }
+    ata_dev = ATA_probe(PRIMARY_BASE, 0, 0, "ATA Drive", PRIMARY_IRQ);
+    printk("Total 512B blocks on device: %ld\n", ata_dev->dev.tot_len);
 }
