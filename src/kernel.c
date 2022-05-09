@@ -67,5 +67,5 @@ void kmain_thread(void *arg) {
     printk("Executing in kthread\n");
 
     ata_dev = ATA_probe(PRIMARY_BASE, 0, 0, "ATA Drive", PRIMARY_IRQ);
-    printk("Total 512B blocks on device: %ld\n", ata_dev->dev.tot_len);
+    ATA_read_block(ata_dev, 32, NULL);
 }

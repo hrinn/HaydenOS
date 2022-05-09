@@ -28,6 +28,8 @@ struct ata_block_dev {
 ata_block_dev_t *ATA_probe(uint16_t base, uint16_t master, 
     uint8_t slave, const char *name, uint8_t irq);
 
+int ATA_read_block(ata_block_dev_t *ata_dev, uint64_t blk_num, void *dst);
+
 // PIO Bus Addresses
 #define PRIMARY_BASE 0x1F0
 #define SECONDARY_BASE 0x170

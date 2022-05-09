@@ -30,6 +30,7 @@
 #define CMD_SELECT_MASTER 0xA0
 #define CMD_SELECT_SLAVE 0xB0
 #define CMD_IDENTIFY 0xEC
+#define CMD_READ_SECTORS_EXT 0x24
 
 #define PRIMARY_INT_LINE 14
 
@@ -38,12 +39,45 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
 
     printk("ATA Isr! %s\n", ata_dev->dev.name);
 
+    // Process an ATA request from the request queue
+
+    // Unblock handler man to handle
+
     IRQ_end_of_interrupt(irq - 32);
 }
 
-int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
+// Initializes and ATA read and puts the request in the queue
+int ATA_read_block(ata_block_dev_t *ata_dev, uint64_t blk_num, void *dst) {
+    uint64_t lba = blk_num * ata_dev->dev.blk_size;
+    uint8_t *lba_n = (uint8_t *)&lba;
     
+    // Select master/slave
+    outb(DRIVE_HEAD_REG(ata_dev->ata_base), 0x40 | (ata_dev->slave << 4));
+
+    // Write sector count and LBA to registers
+    // Right now sector count is hard coded to 1
+    outb(SEC_CNT_REG(ata_dev->ata_base), 0);
+    outb(SEC_NUM_REG(ata_dev->ata_base), lba_n[3]);
+    outb(CYL_LOW_REG(ata_dev->ata_base), lba_n[4]);
+    outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[5]);
+
+    outb(SEC_CNT_REG(ata_dev->ata_base), 1);
+    outb(SEC_NUM_REG(ata_dev->ata_base), lba_n[0]);
+    outb(CYL_LOW_REG(ata_dev->ata_base), lba_n[1]);
+    outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[2]);
+
+    // Send read sectors command
+    outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
+
+    // Should initialize an interrupt
+
+    return 0;
 }
+
+// Initialize LBA48 read
+// int ATA_LBA48_read(block_dev_t *dev, uint64_t blk_num, void *dst) {
+
+// }
 
 // Ensures specified controller is present
 // Returns a pointer to a struct with its information
@@ -120,7 +154,7 @@ ata_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
         return NULL;
     }
 
-    // Determine API mode
+    // Determine API mode (sata/ata stuff)
 
     sectors |= (uint64_t) data[100] << 0;
     sectors |= (uint64_t) data[101] << 16;
@@ -138,7 +172,7 @@ ata_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
     ata_dev->req_tail = NULL;
     ata_dev->dev.tot_len = sectors; // Might need to multiply by 512
     ata_dev->dev.blk_size = 512;
-    ata_dev->dev.type = PARTITION; // Not sure if this is right
+    ata_dev->dev.type = PARTITION;
     ata_dev->dev.name = name;
     ata_dev->dev.next = NULL;
 
