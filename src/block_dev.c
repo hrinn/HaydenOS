@@ -31,6 +31,20 @@
 #define CMD_SELECT_SLAVE 0xB0
 #define CMD_IDENTIFY 0xEC
 
+#define PRIMARY_INT_LINE 14
+
+void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
+    ata_block_dev_t *ata_dev = (ata_block_dev_t *)arg;
+
+    printk("ATA Isr! %s\n", ata_dev->dev.name);
+
+    IRQ_end_of_interrupt(irq - 32);
+}
+
+int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
+    
+}
+
 // Ensures specified controller is present
 // Returns a pointer to a struct with its information
 // This struct must be freed
@@ -128,7 +142,12 @@ ata_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
     ata_dev->dev.name = name;
     ata_dev->dev.next = NULL;
 
-    // Setup interrupts
+    // Register interrupt handler
+    IRQ_set_handler(irq, ATA_isr, ata_dev);
+    IRQ_clear_mask(irq - 32);
+
+    // Turn interrupts back on
+    outb(DEV_CTRL_REG(base), 0);
 
     return ata_dev;
 }
