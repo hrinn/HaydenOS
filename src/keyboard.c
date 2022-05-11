@@ -425,6 +425,4 @@ void keyboard_handler(
             SET_BIT(keyb.mod_state, mod);
         }
     }
-
-    IRQ_end_of_interrupt(KEYBOARD_INT_LINE);
 }

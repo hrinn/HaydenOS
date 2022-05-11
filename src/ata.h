@@ -1,0 +1,33 @@
+#ifndef ATA_H
+#define ATA_H
+
+#include "block.h"
+#include "proc.h"
+
+typedef struct ATA_request {
+    struct ATA_request *next;
+    void *dst;
+} ATA_request_t;
+
+typedef struct ATA_block_dev {
+    block_dev_t dev;
+    uint16_t ata_base, ata_master;
+    uint8_t slave, irq;
+    struct ATA_request *req_head, *req_tail;
+    proc_queue_t blocked_queue;
+} ATA_block_dev_t;
+
+ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master, 
+    uint8_t slave, const char *name, uint8_t irq);
+
+// PIO Bus Addresses
+#define PRIMARY_BASE 0x1F0
+#define SECONDARY_BASE 0x170
+
+// IRQ
+#define PRIMARY_INT_LINE 14
+#define SECONDARY_INT_LINE 15
+#define PRIMARY_IRQ PRIMARY_INT_LINE + 0x20
+#define SECONDARY_IRQ SECONDARY_INT_LINE + 0x20
+
+#endif

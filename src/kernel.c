@@ -6,9 +6,10 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include "block_dev.h"
+#include "ata.h"
 #include "sys_call.h"
 #include <stddef.h>
+#include "keyboard.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -62,10 +63,35 @@ void kmain_vspace() {
     }
 }
 
+void print_block(uint8_t *block) {
+    int i, j;
+    for (i = 0; i < 512; i += 16) {
+        for (j = 0; j < 16; j++) {
+            if (block[i + j] <= 0xf) {
+                printk("0");
+            }
+            printk("%x ", block[i + j]);
+            if (j == 7) {
+                printk(" ");
+            }
+        }
+        printk("\n");
+    }
+}
+
 void kmain_thread(void *arg) {
-    ata_block_dev_t *ata_dev;
+    ATA_block_dev_t *ata_dev;
     printk("Executing in kthread\n");
 
+    uint8_t buffer[512];
+    int i;
+
     ata_dev = ATA_probe(PRIMARY_BASE, 0, 0, "ATA Drive", PRIMARY_IRQ);
-    ATA_read_block(ata_dev, 32, NULL);
+
+    for (i = 0; i <= 32; i++) {
+        ata_dev->dev.read_block((block_dev_t *)ata_dev, i, (void *)buffer);
+        printk("Block %d\n", i);
+        print_block(buffer);
+    }
+
 }

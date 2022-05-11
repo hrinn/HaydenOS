@@ -49,8 +49,14 @@ process_t *pop_proc(proc_queue_t *queue) {
     if (queue->head == NULL) return NULL;
 
     temp = queue->head;
-    queue->head = temp->next;
-    if (queue->head != NULL) queue->head->prev = NULL;
+    if (queue->head == queue->tail) {
+        // Removing last item in queue
+        queue->tail = NULL;
+        queue->head = NULL;
+    } else {
+        queue->head = temp->next;
+        queue->head->prev = NULL;
+    }
 
     temp->next = NULL;
     temp->prev = NULL;
