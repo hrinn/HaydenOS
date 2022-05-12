@@ -101,12 +101,13 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
 
     // Read status register to clear interrupt flag
     inb(STAT_REG(ata_dev->ata_base));
+    IRQ_end_of_interrupt(irq);
 }
 
 int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
     
-    uint8_t drive_head, status;
+    uint8_t drive_head;
     uint8_t *lba_n = (uint8_t *)&blk_num;
 
     // Create an ATA request for the operation
@@ -129,9 +130,9 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[2]);
 
     // Poll for not busy
-    do {
-        status = inb(ALT_STAT_REG(ata_dev->ata_base));
-    } while (status & STAT_BSY);
+    // do {
+    //     status = inb(ALT_STAT_REG(ata_dev->ata_base));
+    // } while (status & STAT_BSY);
 
     // Send read sectors command
     outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
@@ -231,7 +232,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
     ata_dev->dev.tot_len = sectors; // Might need to multiply by 512
     ata_dev->dev.read_block = (read_block_f)(((uint64_t)ATA_read_block) + KERNEL_TEXT_START);
     ata_dev->dev.blk_size = 512;
-    ata_dev->dev.type = PARTITION;
+    ata_dev->dev.type = MASS_STORAGE;
     ata_dev->dev.name = name;
     ata_dev->dev.next = NULL;
 
@@ -242,7 +243,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
 
     // Register interrupt handler
     IRQ_set_handler(irq, ATA_isr, ata_dev);
-    IRQ_clear_mask(irq - 0x20);
+    IRQ_clear_mask(irq);
 
     // Set nIEN to 0 to receive interrupts
     outb(DEV_CTRL_REG(base), 0);

@@ -128,9 +128,10 @@ void PROC_unblock_head(proc_queue_t *queue) {
     if (!queue) return;
 
     current = pop_proc(queue);
-    if (current != NULL) sched_admit(current);
-
-    yield(); // Context switch
+    if (current != NULL) {
+        sched_admit(current);
+        yield(); // Context switch
+    }
 }
 
 void PROC_init_queue(proc_queue_t *queue) {

@@ -45,7 +45,6 @@
 
 // Other
 #define N_TRIES 3
-#define KEYBOARD_INT_LINE 1
 #define KEYBOARD_IRQ 33
 
 // Operation scan codes
@@ -260,7 +259,7 @@ int KBD_init() {
 
     // Initialize interrupts
     IRQ_set_handler(KEYBOARD_IRQ, keyboard_handler, NULL);
-    IRQ_clear_mask(KEYBOARD_INT_LINE);
+    IRQ_clear_mask(KEYBOARD_IRQ);
 
     return 1;
 }
@@ -425,4 +424,6 @@ void keyboard_handler(
             SET_BIT(keyb.mod_state, mod);
         }
     }
+
+    IRQ_end_of_interrupt(KEYBOARD_IRQ);
 }

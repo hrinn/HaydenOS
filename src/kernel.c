@@ -70,20 +70,20 @@ void print_block(uint8_t *block) {
     for (i = 0; i < 512; i += 16) {
         for (j = 0; j < 16; j++) {
             if (block[i + j] <= 0xf) {
-                printk("0");
+                printb("0");
             }
-            printk("%x ", block[i + j]);
+            printb("%x ", block[i + j]);
             if (j == 7) {
-                printk(" ");
+                printb(" ");
             }
         }
-        printk("\n");
+        printb("\n");
     }
 }
 
 void kmain_thread(void *arg) {
     ATA_block_dev_t *ata_dev;
-    printk("Executing in kthread\n");
+    printb("Executing in kthread\n");
 
     uint8_t buffer[512];
     int i;
@@ -92,13 +92,15 @@ void kmain_thread(void *arg) {
 
     for (i = 0; i <= 32; i++) {
         ata_dev->dev.read_block((block_dev_t *)ata_dev, i, (void *)buffer);
-        printk("Block %d\n", i);
+        printb("Block %d\n", i);
         print_block(buffer);
     }
+
+    KBD_init();
+    PROC_create_kthread(keyboard_printer, NULL);
 }
 
 void keyboard_printer(void *arg) {
-    KBD_init();
     while (1) {
         printk("%c", getc());
     }

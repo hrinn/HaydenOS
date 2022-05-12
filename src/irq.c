@@ -35,6 +35,9 @@
 
 #define CASCADE_INT_LINE 2
 
+#define LINE(irq) irq - PIC1_OFFSET
+#define IRQ(line) line + PIC1_OFFSET
+
 void IRQ_end_of_interrupt(uint8_t irq_line);
 
 typedef struct isr_stack_frame {
@@ -91,9 +94,6 @@ static virtual_addr_t kernel_text_offset;
 void irq_handler(uint8_t irq, uint32_t error_code, isr_stack_frame_t *stack_frame) {
     if (irq_handler_table[irq].handler) {
         irq_handler_table[irq].handler(irq, error_code, irq_handler_table[irq].arg);
-        if (irq >= PIC_START && irq <= PIC_END) {
-            IRQ_end_of_interrupt(irq - PIC_START);
-        }
     } else {
         // No entry set for this irq
         printk("Unhandled Interrupt %d (%s) at 0x%lx\n", 
@@ -203,7 +203,7 @@ void IRQ_init() {
     outb(PIC2_DATA, 0xFF);
 
     // Unmask cascade line so that PIC2 interrupts can fire
-    IRQ_clear_mask(CASCADE_INT_LINE);
+    IRQ_clear_mask(IRQ(CASCADE_INT_LINE));
 
     // Remap PIC
     PIC_remap();
@@ -212,9 +212,10 @@ void IRQ_init() {
     sti();
 }
 
-void IRQ_set_mask(uint8_t irq_line) {
+void IRQ_set_mask(uint8_t irq) {
     uint16_t port;
     uint8_t value;
+    uint8_t irq_line = LINE(irq);
 
     if (irq_line < 8) {
         port = PIC1_DATA;
@@ -227,9 +228,10 @@ void IRQ_set_mask(uint8_t irq_line) {
     outb(port, value);
 }
 
-void IRQ_clear_mask(uint8_t irq_line) {
+void IRQ_clear_mask(uint8_t irq) {
     uint16_t port;
     uint8_t value;
+    uint8_t irq_line = LINE(irq);
  
     if(irq_line < 8) {
         port = PIC1_DATA;
@@ -241,8 +243,9 @@ void IRQ_clear_mask(uint8_t irq_line) {
     outb(port, value);        
 }
 
-uint8_t IRQ_get_mask(uint8_t irq_line) {
+uint8_t IRQ_get_mask(uint8_t irq) {
     uint16_t port;
+    uint8_t irq_line = LINE(irq);
     
     if (irq_line < 8) {
         port = PIC1_DATA;
@@ -254,8 +257,8 @@ uint8_t IRQ_get_mask(uint8_t irq_line) {
     return inb(port) & (1 << irq_line);
 }
 
-void IRQ_end_of_interrupt(uint8_t irq_line) {
-    if (irq_line >= 8) {
+void IRQ_end_of_interrupt(uint8_t irq) {
+    if (LINE(irq) >= 8) {
         outb(PIC2_COMMAND, PIC_EOI);
     }
     outb(PIC1_COMMAND, PIC_EOI);

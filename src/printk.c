@@ -89,52 +89,52 @@ static void uitoa(uint64_t num, char *buffer, int base, bool caps) {
     strrev(buffer);
 }
 
-static inline void print(const char *buff, int len) {
+static inline void print(const char *buff, int len, bool block) {
     VGA_display_str(buff, len);
-    SER_write(buff, len);
+    (block) ? SER_writeb(buff, len) : SER_write(buff, len);
 }
 
-static inline void print_uchar(unsigned char u) {
-    print((char *)&u, 1);
+static inline void print_uchar(unsigned char u, bool block) {
+    print((char *)&u, 1, block);
 }
 
-static inline void print_char(char c) {
-    print(&c, 1);
+static inline void print_char(char c, bool block) {
+    print(&c, 1, block);
 }
 
-static inline void print_str(const char *s) {
-    print(s, strlen(s));
+static inline void print_str(const char *s, bool block) {
+    print(s, strlen(s), block);
 }
 
-static inline void print_strn(const char *s, int len) {
-    print(s, len);
+static inline void print_strn(const char *s, int len, bool block) {
+    print(s, len, block);
 }
 
-static void print_int(int64_t i) {
+static void print_int(int64_t i, bool block) {
     char buffer[FORMAT_BUFF];
     itoa(i, buffer, 10, false);
-    print(buffer, FORMAT_BUFF);
+    print(buffer, FORMAT_BUFF, block);
 }
 
-static void print_uint(uint64_t u) {
+static void print_uint(uint64_t u, bool block) {
     char buffer[FORMAT_BUFF];
     uitoa(u, buffer, 10, false);
-    print(buffer, FORMAT_BUFF);
+    print(buffer, FORMAT_BUFF, block);
 }
 
-static void print_hex(uint64_t h, bool caps) {
+static void print_hex(uint64_t h, bool caps, bool block) {
     char buffer[FORMAT_BUFF];
     uitoa(h, buffer, 16, caps);
-    print(buffer, FORMAT_BUFF);
+    print(buffer, FORMAT_BUFF, block);
 }
 
 
-static void print_pointer(uint64_t p) {
+static void print_pointer(uint64_t p, bool block) {
     char buffer[FORMAT_BUFF];
     buffer[0] = '0';
     buffer[1] = 'x';
     uitoa(p, buffer + 2, 16, false);
-    print(buffer, FORMAT_BUFF);
+    print(buffer, FORMAT_BUFF, block);
 }
 
 // Takes a format string, pointing to the % character
@@ -188,14 +188,12 @@ static bool check_format_spec(const char *fmt, struct format_info *info) {
 }
 
 // Like printf, but in the kernel
-int printk(const char *fmt, ...) {
-    va_list valist;
+int print_backend(const char *fmt, bool block, va_list valist) {
     int start = 0, end = 0;
     struct format_info info;
     bool format_flag, end_flag;
 
     if (fmt == NULL) return -1;
-    va_start(valist, fmt);
 
     do {
         info.length = 0;
@@ -208,54 +206,54 @@ int printk(const char *fmt, ...) {
         format_flag = check_format_spec(fmt + end, &info);
 
         if (end_flag || format_flag) {
-            print_strn(fmt + start, end - start);
+            print_strn(fmt + start, end - start, block);
         }
 
         if (format_flag) {
             switch (info.format_specifier) {
                 case '%': // Percent
-                    print_char('%');
+                    print_char('%', block);
                     break;
                 case 'd': // Signed integer
                     switch (info.length_specifier) {
-                        case 'h': print_int((int16_t)va_arg(valist, int32_t));          break;
-                        case 'l': print_int(va_arg(valist, int64_t));                   break;
-                        case 'q': print_int(va_arg(valist, int64_t));                   break;
-                        case '\0': print_int(va_arg(valist, int32_t));                  break;
+                        case 'h': print_int((int16_t)va_arg(valist, int32_t), block);          break;
+                        case 'l': print_int(va_arg(valist, int64_t), block);                   break;
+                        case 'q': print_int(va_arg(valist, int64_t), block);                   break;
+                        case '\0': print_int(va_arg(valist, int32_t), block);                  break;
                     }     
                     break;
                 case 'u': // Unsigned integer
                     switch (info.length_specifier) {
-                        case 'h': print_uint((uint16_t)va_arg(valist, uint32_t));       break;
-                        case 'l': print_uint(va_arg(valist, uint64_t));                 break;
-                        case 'q': print_uint(va_arg(valist, uint64_t));                 break;
-                        case '\0': print_uint(va_arg(valist, uint32_t));                break;
+                        case 'h': print_uint((uint16_t)va_arg(valist, uint32_t), block);       break;
+                        case 'l': print_uint(va_arg(valist, uint64_t), block);                 break;
+                        case 'q': print_uint(va_arg(valist, uint64_t), block);                 break;
+                        case '\0': print_uint(va_arg(valist, uint32_t), block);                break;
                     }
                     break;
                 case 'x': // Lowercase hex
                     switch (info.length_specifier) {
-                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), false); break;
-                        case 'l': print_hex(va_arg(valist, uint64_t), false);           break;
-                        case 'q': print_hex(va_arg(valist, uint64_t), false);           break;
-                        case '\0': print_hex(va_arg(valist, uint32_t), false);          break;
+                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), false, block); break;
+                        case 'l': print_hex(va_arg(valist, uint64_t), false, block);           break;
+                        case 'q': print_hex(va_arg(valist, uint64_t), false, block);           break;
+                        case '\0': print_hex(va_arg(valist, uint32_t), false, block);          break;
                     }
                     break;
                 case 'X': // Uppercase hex
                     switch (info.length_specifier) {
-                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), true);  break;
-                        case 'l': print_hex(va_arg(valist, uint64_t), true);            break;
-                        case 'q': print_hex(va_arg(valist, uint64_t), true);            break;
-                        case '\0': print_hex(va_arg(valist, uint32_t), true);           break;
+                        case 'h': print_hex((uint16_t)va_arg(valist, uint32_t), true, block);  break;
+                        case 'l': print_hex(va_arg(valist, uint64_t), true, block);            break;
+                        case 'q': print_hex(va_arg(valist, uint64_t), true, block);            break;
+                        case '\0': print_hex(va_arg(valist, uint32_t), true, block);           break;
                     }
                     break;
                 case 'c': // Char
-                    print_char((char)va_arg(valist, int));
+                    print_char((char)va_arg(valist, int), block);
                     break;
                 case 'p': // Pointer address
-                    print_pointer(va_arg(valist, uint64_t));
+                    print_pointer(va_arg(valist, uint64_t), block);
                     break;
                 case 's': // String
-                    print_str(va_arg(valist, char *));
+                    print_str(va_arg(valist, char *), block);
                     break;
                 default: // Invalid specifier
                     return -1;
@@ -265,7 +263,23 @@ int printk(const char *fmt, ...) {
         }
     } while (fmt[end++]);
 
-    va_end(valist);
-
     return 1;
+}
+
+int printb(const char *fmt, ...) {
+    va_list valist;
+    int res;
+    va_start(valist, fmt);
+    res = print_backend(fmt, true, valist);
+    va_end(valist);
+    return res;
+}
+
+int printk(const char *fmt, ...) {
+    va_list valist;
+    int res;
+    va_start(valist, fmt);
+    res = print_backend(fmt, false, valist);
+    va_end(valist);
+    return res;
 }

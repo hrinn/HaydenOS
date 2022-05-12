@@ -25,9 +25,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
 #define SECONDARY_BASE 0x170
 
 // IRQ
-#define PRIMARY_INT_LINE 14
-#define SECONDARY_INT_LINE 15
-#define PRIMARY_IRQ PRIMARY_INT_LINE + 0x20
-#define SECONDARY_IRQ SECONDARY_INT_LINE + 0x20
+#define PRIMARY_IRQ 46
+#define SECONDARY_IRQ 47
 
 #endif
