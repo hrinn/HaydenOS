@@ -10,6 +10,8 @@
 #include "sys_call.h"
 #include <stddef.h>
 #include "keyboard.h"
+#include "snakes.h"
+#include "string.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -93,5 +95,11 @@ void kmain_thread(void *arg) {
         printk("Block %d\n", i);
         print_block(buffer);
     }
+}
 
+void keyboard_printer(void *arg) {
+    KBD_init();
+    while (1) {
+        printk("%c", getc());
+    }
 }

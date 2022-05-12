@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint-gcc.h>
 #include "circ_buff.h"
+#include "vga.h"
 
 #define COM1 0x3F8
 #define HW_BUFF_SIZE 14
@@ -118,6 +119,9 @@ void serial_isr(uint8_t irq, uint32_t error_code, void *arg) {
             break;
         case IIR_LINE_STATUS:   // Read line status register
             inb(COM1 + 5);
+            break;
+        default:
+            VGA_display_str("Bad serial isr!\n", 17);
             break;
     }
 }

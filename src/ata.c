@@ -87,8 +87,6 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
     uint16_t *dst;
     int i;
 
-    inb(STAT_REG(ata_dev->ata_base));
-
     if (request != NULL) {
         dst = (uint16_t *)request->dst;
 
@@ -100,6 +98,9 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
         // Unblock head of ATA blocked queue
         PROC_unblock_head(&ata_dev->blocked_queue);
     }
+
+    // Read status register to clear interrupt flag
+    inb(STAT_REG(ata_dev->ata_base));
 }
 
 int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
@@ -129,7 +130,7 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
 
     // Poll for not busy
     do {
-        status = inb(STAT_REG(ata_dev->ata_base));
+        status = inb(ALT_STAT_REG(ata_dev->ata_base));
     } while (status & STAT_BSY);
 
     // Send read sectors command
@@ -137,7 +138,7 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
 
     // Block until data is ready
     // wait_event_interruptable(&ata_dev->blocked_queue, is_ATA_request_queued(ata_dev, &read_request));
-    wait_event_interruptable(&ata_dev->blocked_queue, is_ATA_queue_empty(ata_dev));
+    wait_event_interruptable(&ata_dev->blocked_queue, is_ATA_request_queued(ata_dev, &read_request));
 
     return 1;
 }
