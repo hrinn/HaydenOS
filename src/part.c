@@ -24,8 +24,12 @@ typedef struct part_block_dev {
 } part_block_dev_t;
 
 void print_part(part_entry_t *part, int n) {
-    printb("Partition %d - Type: 0x%X, Size: %d, Start LBA: 0x%x\n", 
-        n, part->type, part->num_sectors, part->lba_addr);
+    if (part->type == 0) {
+        printb("Partition %d - None\n", n);
+    } else {
+        printb("Partition %d - Type: 0x%X, Size: %d, Start LBA: 0x%x\n", 
+            n, part->type, part->num_sectors, part->lba_addr);
+    }
 }
 
 int part_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
@@ -62,20 +66,18 @@ int parse_MBR() {
     // Parse partitions
     part = (part_entry_t *)(&block[446]);
     for (i = 0; i < 4; i++) {
-        if (part->type != 0) {
-            print_part(part, i);
+        print_part(part, i);
 
-            if (part->type != FAT32_LBA_TYPE) continue;
+        if (part->type != FAT32_LBA_TYPE) continue;
 
-            // Create and register a partition block device
-            dev = (part_block_dev_t *)kmalloc(sizeof(part_block_dev_t));
-            dev->ata = *drive;
-            dev->lba_offset = part->lba_addr;
-            dev->num_sectors = part->num_sectors;
-            dev->ata.dev.read_block = (read_block_f)(((uint64_t)part_read_block) + KERNEL_TEXT_START);
-            dev->ata.dev.type = PARTITION;
-            BLK_register((block_dev_t *)dev);
-        }
+        // Create and register a partition block device
+        dev = (part_block_dev_t *)kmalloc(sizeof(part_block_dev_t));
+        dev->ata = *drive;
+        dev->lba_offset = part->lba_addr;
+        dev->num_sectors = part->num_sectors;
+        dev->ata.dev.read_block = (read_block_f)(((uint64_t)part_read_block) + KERNEL_TEXT_START);
+        dev->ata.dev.type = PARTITION;
+        BLK_register((block_dev_t *)dev);
         part++;
     }
 
