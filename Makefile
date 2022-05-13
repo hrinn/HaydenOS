@@ -62,7 +62,9 @@ $(kernel): $(assembly_object_files) $(c_object_files) $(linker_script)
 	@$(LD) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
 
 $(grub_cfg): src/grub.cfg
-	@mkdir -p build/img/boot/grubmod made it as far as being in the same car with a# compile assembly files
+	@mkdir -p build/img/boot/grub
+	@cp src/grub.cfg $(grub_cfg)
+
 build/%.o: src/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf64 $< -o $@
