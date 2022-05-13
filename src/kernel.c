@@ -6,12 +6,9 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include "ata.h"
 #include "sys_call.h"
+#include "part.h"
 #include <stddef.h>
-#include "keyboard.h"
-#include "snakes.h"
-#include "string.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -65,43 +62,8 @@ void kmain_vspace() {
     }
 }
 
-void print_block(uint8_t *block) {
-    int i, j;
-    for (i = 0; i < 512; i += 16) {
-        for (j = 0; j < 16; j++) {
-            if (block[i + j] <= 0xf) {
-                printb("0");
-            }
-            printb("%x ", block[i + j]);
-            if (j == 7) {
-                printb(" ");
-            }
-        }
-        printb("\n");
-    }
-}
-
 void kmain_thread(void *arg) {
-    ATA_block_dev_t *ata_dev;
     printb("Executing in kthread\n");
 
-    uint8_t buffer[512];
-    int i;
-
-    ata_dev = ATA_probe(PRIMARY_BASE, 0, 0, "ATA Drive", PRIMARY_IRQ);
-
-    for (i = 0; i <= 32; i++) {
-        ata_dev->dev.read_block((block_dev_t *)ata_dev, i, (void *)buffer);
-        printb("Block %d\n", i);
-        print_block(buffer);
-    }
-
-    KBD_init();
-    PROC_create_kthread(keyboard_printer, NULL);
-}
-
-void keyboard_printer(void *arg) {
-    while (1) {
-        printk("%c", getc());
-    }
+    parse_MBR();
 }

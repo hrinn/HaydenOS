@@ -110,6 +110,11 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     uint8_t drive_head;
     uint8_t *lba_n = (uint8_t *)&blk_num;
 
+    if (blk_num >= dev->tot_len) {
+        printk("ATA_read_block(): Tried to read past end of drive\n");
+        return -1;
+    }
+
     // Create an ATA request for the operation
     ATA_request_t read_request;
     read_request.dst = dst;
@@ -129,16 +134,10 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     outb(CYL_LOW_REG(ata_dev->ata_base), lba_n[1]);
     outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[2]);
 
-    // Poll for not busy
-    // do {
-    //     status = inb(ALT_STAT_REG(ata_dev->ata_base));
-    // } while (status & STAT_BSY);
-
     // Send read sectors command
     outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
 
     // Block until data is ready
-    // wait_event_interruptable(&ata_dev->blocked_queue, is_ATA_request_queued(ata_dev, &read_request));
     wait_event_interruptable(&ata_dev->blocked_queue, is_ATA_request_queued(ata_dev, &read_request));
 
     return 1;
@@ -229,7 +228,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master,
     ata_dev->irq = irq;
     ata_dev->req_head = NULL;
     ata_dev->req_tail = NULL;
-    ata_dev->dev.tot_len = sectors; // Might need to multiply by 512
+    ata_dev->dev.tot_len = sectors;
     ata_dev->dev.read_block = (read_block_f)(((uint64_t)ATA_read_block) + KERNEL_TEXT_START);
     ata_dev->dev.blk_size = 512;
     ata_dev->dev.type = MASS_STORAGE;

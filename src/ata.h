@@ -19,6 +19,7 @@ typedef struct ATA_block_dev {
 
 ATA_block_dev_t *ATA_probe(uint16_t base, uint16_t master, 
     uint8_t slave, const char *name, uint8_t irq);
+int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst);
 
 // PIO Bus Addresses
 #define PRIMARY_BASE 0x1F0
