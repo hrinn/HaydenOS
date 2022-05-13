@@ -36,18 +36,6 @@ size_t strlen(const char *s) {
     return len;
 }
 
-char *strcpy(char *dest, const char *src) {
-    size_t i = 0;
-    if (dest == NULL) return NULL;
-    if (src == NULL) return dest;
-
-    do {
-        dest[i] = src[i];
-    } while (src[i++] != '\0');
-
-    return dest;
-}
-
 char *strncpy(char *dest, const char *src, size_t n) {
     size_t i;
     if (dest == NULL) return NULL;
@@ -84,11 +72,6 @@ const char *strchr(const char *s, int c) {
     }
     return NULL;
 }
-
-/* Not implemented, no malloc on system */
-// char *strdup(const char *s) {
-//     return NULL;
-// }
 
 // Reverses a string in place
 void strrev(char *str) {

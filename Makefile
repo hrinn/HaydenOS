@@ -52,7 +52,7 @@ img: $(img)
 iso: $(iso)
 
 $(img): $(kernel) $(grub_cfg)
-	@src/img.sh
+	@tools/img.sh
 
 $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/img 2> /dev/null
@@ -62,10 +62,7 @@ $(kernel): $(assembly_object_files) $(c_object_files) $(linker_script)
 	@$(LD) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
 
 $(grub_cfg): src/grub.cfg
-	@mkdir -p build/img/boot/grub
-	@cp src/grub.cfg $(grub_cfg)
-
-# compile assembly files
+	@mkdir -p build/img/boot/grubmod made it as far as being in the same car with a# compile assembly files
 build/%.o: src/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf64 $< -o $@

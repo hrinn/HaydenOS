@@ -9,6 +9,7 @@
 #include "sys_call.h"
 #include "part.h"
 #include <stddef.h>
+#include "keyboard.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
