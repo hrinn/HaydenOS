@@ -8,6 +8,7 @@
 #include "proc.h"
 #include "sys_call.h"
 #include "part.h"
+#include "fat.h"
 #include <stddef.h>
 
 #define HALT_LOOP while(1) asm("hlt")
@@ -63,7 +64,12 @@ void kmain_vspace() {
 }
 
 void kmain_thread(void *arg) {
+    part_block_dev_t *partitions[4];
+    ATA_block_dev_t *drive;
+
     printb("Executing in kthread\n");
 
-    parse_MBR();
+    drive = ATA_probe(PRIMARY_BASE, 0, "d0", PRIMARY_IRQ);
+    parse_MBR(drive, partitions);
+    FAT_setup(partitions[0]);
 }

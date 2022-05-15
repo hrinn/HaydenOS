@@ -1,8 +1,8 @@
 #include "part.h"
-#include "ata.h"
 #include "block.h"
 #include "printk.h"
 #include "kmalloc.h"
+#include "string.h"
 #include <stdint-gcc.h>
 
 #define BLOCK_SIZE 512
@@ -16,12 +16,6 @@ typedef struct part_entry {
     uint32_t lba_addr;
     uint32_t num_sectors;
 } part_entry_t;
-
-typedef struct part_block_dev {
-    ATA_block_dev_t ata;
-    uint32_t lba_offset;
-    uint32_t num_sectors;
-} part_block_dev_t;
 
 void print_part(part_entry_t *part, int n) {
     if (part->type == 0) {
@@ -44,10 +38,10 @@ int part_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
 }
 
 // Parses the master boot record on the primary master drive
+// Places partition devices 
 // Returns 1 on success, -1 on failure
-int parse_MBR() {
+int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
     uint8_t block[BLOCK_SIZE];
-    ATA_block_dev_t *drive = ATA_probe(PRIMARY_BASE, 0, 0, "d0", PRIMARY_IRQ);
     part_entry_t *part;
     part_block_dev_t *dev;
     int i = 0;
@@ -68,16 +62,23 @@ int parse_MBR() {
     for (i = 0; i < 4; i++) {
         print_part(part, i);
 
-        if (part->type != FAT32_LBA_TYPE) continue;
+        if (part->type != FAT32_LBA_TYPE) {
+            partitions[i] = NULL;
+            part++;
+            continue;
+        }
 
         // Create and register a partition block device
         dev = (part_block_dev_t *)kmalloc(sizeof(part_block_dev_t));
-        dev->ata = *drive;
+        memcpy(dev, drive, sizeof(ATA_block_dev_t));
         dev->lba_offset = part->lba_addr;
         dev->num_sectors = part->num_sectors;
-        dev->ata.dev.read_block = (read_block_f)(((uint64_t)part_read_block) + KERNEL_TEXT_START);
         dev->ata.dev.type = PARTITION;
+        dev->ata.dev.read_block = (read_block_f)(((uint64_t)part_read_block) + KERNEL_TEXT_START);
+
         BLK_register((block_dev_t *)dev);
+
+        partitions[i] = dev;
         part++;
     }
 
