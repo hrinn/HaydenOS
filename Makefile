@@ -65,6 +65,7 @@ $(grub_cfg): src/grub.cfg
 	@mkdir -p build/img/boot/grub
 	@cp src/grub.cfg $(grub_cfg)
 
+# compile assembly files
 build/%.o: src/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf64 $< -o $@
