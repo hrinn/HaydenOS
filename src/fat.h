@@ -1,7 +1,9 @@
 #ifndef FAT_H
 #define FAT_H
 
-#include "part.h"
-int FAT_setup(part_block_dev_t *part);
+#include "block.h"
+#include "vfs.h"
+
+superblock_t *FAT_detect(block_dev_t *dev);
 
 #endif

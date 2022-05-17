@@ -4,6 +4,7 @@
 #include <stdint-gcc.h>
 
 #define KERNEL_TEXT_START 0xffff800000000000
+#define VSPACE(func) (func + KERNEL_TEXT_START)
 
 typedef uint64_t virtual_addr_t;
 typedef uint64_t physical_addr_t;

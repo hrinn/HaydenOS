@@ -4,6 +4,14 @@
 #include "printk.h"
 #include <stdint-gcc.h>
 
+#define FAT_ATTR_READ_ONLY 0x01
+#define FAT_ATTR_HIDDEN 0x02
+#define FAT_ATTR_SYSTEM 0x04
+#define FAT_ATTR_VOLUME_ID 0x08
+#define FAT_ATTR_DIRECTORY 0x10
+#define FAT_ATTR_ARCHIVE 0x20
+#define FAT_ATTR_LFN (FAT_ATTR_READ_ONLY | FAT_ATTR_HIDDEN | FAT_ATTR_SYSTEM | FAT_ATTR_VOLUME_ID)
+
 typedef struct FAT_BPB {
     uint8_t jmp[3];
     char oem_id[8];
@@ -22,6 +30,7 @@ typedef struct FAT_BPB {
 } __attribute__((packed)) FAT_BPB_t;
 
 typedef struct FAT32 {
+    inode_t root_inode;
     FAT_BPB_t FAT_BPB;
     uint32_t sectors_per_fat;
     uint16_t flags;
@@ -57,41 +66,91 @@ typedef struct FAT_dir_ent {
     uint32_t size;
 } __attribute__((packed)) FAT_dir_ent_t;
 
+typedef struct FAT_long_dir_ent {
+    uint8_t order;
+    uint16_t first[5];
+    uint8_t attr;
+    uint8_t type;
+    uint8_t checksum;
+    uint16_t middle[6];
+    uint16_t zero;
+    uint16_t last[2];
+} __attribute__((packed)) FAT_long_dir_ent_t;
+
 static inline int cluster_to_sector(FAT32_t *fat32, int cluster_num) {
     int sector_offset = fat32->FAT_BPB.reserved_sectors + fat32->sectors_per_fat * fat32->FAT_BPB.num_fats;
     return sector_offset + (cluster_num - 2);
 }
 
 void print_dir_ent(FAT_dir_ent_t *dir_ent) {
-    printk("%s\n", dir_ent->name);
+    char dir_name[12];
+    memset(dir_name, 0, 12);
+    strncpy(dir_name, dir_ent->name, 11);
+    printk("%s\n", dir_name);
 }
 
-int FAT_setup(part_block_dev_t *part) {
-    FAT32_t fat32;
-    int root_sector;
-    uint8_t block[512];
-    FAT_dir_ent_t *dir_ent;
+void print_long_dir_ent(FAT_long_dir_ent_t *long_dir_ent) {
+    char dir_name[14];
+    int i;
+    memset(dir_name, 0, 14);
 
-    part->ata.dev.read_block((block_dev_t *)part, 0, &fat32);
-
-    // Validate signature
-    if (fat32.signature != 0x28 && fat32.signature != 0x29) {
-        printk("FAT_setup(): Failed to validate FAT signature\n");
-        return -1;
+    for (i = 0; i < 5; i++) {
+        dir_name[i] = long_dir_ent->first[i] & 0xFF;
     }
 
-    // Get root of fat32
-    root_sector = cluster_to_sector(&fat32, fat32.root_cluster_number);
-    part->ata.dev.read_block((block_dev_t *)part, root_sector, block);
+    for (i = 5; i < 11; i++) {
+        dir_name[i] = long_dir_ent->middle[i - 5] & 0xFF;
+    }
+
+    for (i = 11; i < 13; i++) {
+        dir_name[i] = long_dir_ent->middle[i - 11] & 0xFF;
+    }
+
+    printk("%s\n", dir_name);
+}
+
+void read_directory(block_dev_t *dev, FAT32_t *fat, int cluster_num) {
+    uint8_t block[512];
+    FAT_dir_ent_t *dir_ent;
+    int sector = cluster_to_sector(fat, cluster_num);
+
+    dev->read_block(dev, sector, block);
+
+    printk("Directory at sector %d:\n", sector);
 
     // Print directory entries in root sector
     dir_ent = (FAT_dir_ent_t *)block;
     while (dir_ent->name[0] != 0) {
-        if (dir_ent->name[0] == 0xE5) continue;
-        print_dir_ent(dir_ent);
+        if (dir_ent->name[0] != 0xE5) {
+            if (dir_ent->attr == FAT_ATTR_LFN) {
+                print_long_dir_ent((FAT_long_dir_ent_t *)dir_ent);
+                dir_ent++;
+            } else {
+                print_dir_ent(dir_ent);
+            }
+        }
         dir_ent++;
     }
+}
 
-    return 1;
+superblock_t *FAT_detect(block_dev_t *dev) {
+    FAT32_t *fat = (FAT32_t *)kmalloc(sizeof(FAT32_t));
+    superblock_t *superblock;
 
+    dev->read_block(dev, 0, &fat->FAT_BPB);
+
+    if (fat->signature != 0x28 && fat->signature != 0x29) {
+        printk("FAT_detect(): Failed to validate FAT signature\n");
+        kfree(fat);
+        return NULL;
+    }
+
+    // Valid FAT32 FS
+    superblock = (superblock_t *)kmalloc(sizeof(superblock_t));
+    superblock->type = "FAT32";
+    superblock->name = fat->label;
+    superblock->root_inode = (inode_t *)fat;
+    // TODO: set function pointers
+
+    return superblock;
 }

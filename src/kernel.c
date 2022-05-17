@@ -11,6 +11,7 @@
 #include "fat.h"
 #include <stddef.h>
 #include "keyboard.h"
+#include "vfs.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -18,7 +19,6 @@ void kmain_vspace(void);
 void kmain_thread(void *);
 void keyboard_printer(void *);
 
-#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpointer-arith"
 void kmain(struct multiboot_info *multiboot_tags) {
     virtual_addr_t stack_addresses[4];
@@ -44,9 +44,8 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Switch execution to kernel space
     asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    (kmain_vspace + KERNEL_TEXT_START)();
+    VSPACE(kmain_vspace)();
 }
-#pragma GCC diagnostic pop
 
 void kmain_vspace() {
     // Apply DATA REL offsets
@@ -72,5 +71,5 @@ void kmain_thread(void *arg) {
 
     drive = ATA_probe(PRIMARY_BASE, 0, "d0", PRIMARY_IRQ);
     parse_MBR(drive, partitions);
-    FAT_setup(partitions[0]);
+    FS_register(VSPACE(FAT_detect), (block_dev_t *)partitions[0]);
 }
