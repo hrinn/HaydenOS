@@ -3,6 +3,7 @@
 
 #include "block.h"
 #include "proc.h"
+#include <stdbool.h>
 
 typedef struct ATA_block_dev ATA_block_dev_t;
 
@@ -10,6 +11,8 @@ typedef struct ATA_request {
     struct ATA_request *next;
     ATA_block_dev_t *dev;
     void *dst;
+    uint64_t blk_num;
+    bool processed;
 } ATA_request_t;
 
 struct ATA_block_dev {

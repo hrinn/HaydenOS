@@ -72,6 +72,10 @@ ATA_request_t *pop_ATA_request(ATA_sync_t *sync) {
     return result;
 }
 
+ATA_request_t *peek_ATA_request(ATA_sync_t *sync) {
+    return sync->req_head;
+}
+
 bool is_ATA_request_head(ATA_sync_t *sync, ATA_request_t *req) {
     return sync->req_head == req;
 }
@@ -81,6 +85,19 @@ bool is_ATA_request_queued(ATA_sync_t *sync, ATA_request_t *req) {
 
     while (current != NULL) {
         if (current == req) {
+            return true;
+        }
+        current = current->next;
+    }
+
+    return false;
+}
+
+bool is_unprocessed_ATA_request_queued(ATA_sync_t *sync) {
+    ATA_request_t *current = sync->req_head;
+
+    while (current != NULL) {
+        if (current->processed == false) {
             return true;
         }
         current = current->next;
@@ -104,6 +121,10 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
         ata_dev = request->dev;
         dst = (uint16_t *)request->dst;
 
+        if (!request->processed) {
+            printk("ATA_isr(): Tried to handle unprocessed request!\n");
+        }
+
         // Read 256 16 bit values from data port, into request's dst
         for (i = 0; i < 256; i++) {
             dst[i] = inw(DATA_REG(ata_dev->ata_base));
@@ -118,13 +139,19 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
     IRQ_end_of_interrupt(irq);
 }
 
-void ATA_process_read_request(ATA_block_dev_t *ata_dev, uint64_t blk_num) {
-    uint8_t drive_head;
-    uint8_t *lba_n = (uint8_t *)&blk_num;
+void ATA_process_read_request(ATA_sync_t *sync) {
+    uint8_t *lba_n;
+    ATA_block_dev_t *ata_dev;
+    ATA_request_t *request;
+
+    // Get ATA device and LBA from request
+    request = peek_ATA_request(sync);
+    ata_dev = request->dev;
+    lba_n = (uint8_t *)&request->blk_num;
+    request->processed = true;
 
     // Select master / slave
-    drive_head = (ata_dev->slave) ? 0x50: 0x40;
-    outb(DRIVE_HEAD_REG(ata_dev->ata_base), drive_head);
+    outb(DRIVE_HEAD_REG(ata_dev->ata_base), 0x40 | (ata_dev->slave << 4));
 
     // Send address
     outb(SEC_CNT_REG(ata_dev->ata_base), 0); 
@@ -159,29 +186,27 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     read_request.dst = dst;
     read_request.next = NULL;
     read_request.dev = ata_dev;
+    read_request.blk_num = blk_num;
+    read_request.processed = false;
 
     CLI;
     if (is_ATA_queue_empty(sync)) {
         // Begin request immediately
         append_ATA_request(sync, &read_request);
+        ATA_process_read_request(sync);
         STI;
-        ATA_process_read_request(ata_dev, blk_num);
         wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
     } else {
         // Block now
         append_ATA_request(sync, &read_request);
-        STI;
         wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
     }
 
     CLI;
-    if (!is_ATA_queue_empty(sync)) {
-        // Someone else is waiting, unblock them
-        STI;
-        ATA_process_read_request(ata_dev, blk_num);
-    } else {
-        STI;
+    if (is_unprocessed_ATA_request_queued(sync)) {
+        ATA_process_read_request(sync);
     }
+    STI;
 
     return 1;
 }
