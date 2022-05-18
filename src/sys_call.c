@@ -28,7 +28,7 @@ void init_sys_calls() {
 }
 
 void set_sys_call(uint8_t num, sys_call_f sys_call) {
-    sys_calls[num] = (sys_call_f)(((uint64_t)sys_call) + KERNEL_TEXT_START);
+    sys_calls[num] = VSPACE(sys_call);
 }
 
 void sys_call_isr(uint8_t irq, unsigned int error_code, void *arg) {

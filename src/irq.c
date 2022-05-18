@@ -123,8 +123,6 @@ void set_idt_entry(uint8_t irq) {
     entry->res2 = 0;
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-arith"
 void apply_isr_offset(uint64_t offset) {
     int i;
     uint64_t addr;
@@ -149,8 +147,6 @@ void apply_isr_offset(uint64_t offset) {
     // Set the text offset so that all future install handlers will be correct
     kernel_text_offset = offset;
 }
-#pragma GCC diagnostic pop
-
 
 void PIC_remap() {
     uint8_t mask1 = inb(PIC1_DATA);

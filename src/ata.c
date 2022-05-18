@@ -239,13 +239,15 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     sectors |= (uint64_t) data[102] << 32;
     sectors |= (uint64_t) data[103] << 48;
 
+    printk("Identified ATA drive (%s)\n", name);
+
     // Ready to allocate ATA dev struct
     ata_dev = (ATA_block_dev_t *)kmalloc(sizeof(ATA_block_dev_t));
 
     ata_dev->ata_base = base;
     ata_dev->slave = slave;
     ata_dev->dev.tot_len = sectors;
-    ata_dev->dev.read_block = (read_block_f)(((uint64_t)ATA_read_block) + KERNEL_TEXT_START);
+    ata_dev->dev.read_block = VSPACE(ATA_read_block);
     ata_dev->dev.blk_size = 512;
     ata_dev->dev.type = MASS_STORAGE;
     ata_dev->dev.name = name;

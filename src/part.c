@@ -44,9 +44,10 @@ int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
     uint8_t block[BLOCK_SIZE];
     part_entry_t *part;
     part_block_dev_t *dev;
-    int i = 0;
+    char *part_name;
+    int i = 0, len;
 
-    printk("Parsing MBR\n");
+    printk("Parsing MBR on %s\n", drive->dev.name);
 
     // Read the first block (MBR)
     drive->dev.read_block((block_dev_t *)drive, 0, block);
@@ -74,7 +75,14 @@ int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
         dev->lba_offset = part->lba_addr;
         dev->num_sectors = part->num_sectors;
         dev->ata.dev.type = PARTITION;
-        dev->ata.dev.read_block = (read_block_f)(((uint64_t)part_read_block) + KERNEL_TEXT_START);
+        dev->ata.dev.read_block = VSPACE(part_read_block);
+
+        // Set partition name
+        len = strlen(drive->dev.name);
+        part_name = (char *)kmalloc(len + 1);
+        memcpy(part_name, drive->dev.name, len);
+        part_name[len] = (char)('0' + i);
+        dev->ata.dev.name = part_name;
 
         BLK_register((block_dev_t *)dev);
 

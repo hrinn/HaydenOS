@@ -66,8 +66,8 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     context->pid = pid++;
     context->regfile.rbp = context->stack_top;
     context->regfile.rsp = context->stack_top;
-    context->regfile.rip = ((uint64_t)kthread_wrapper) + KERNEL_TEXT_START;
-    context->regfile.rdi = ((uint64_t)entry_point) + KERNEL_TEXT_START;
+    context->regfile.rip = (uint64_t)VSPACE(kthread_wrapper);
+    context->regfile.rdi = (uint64_t)VSPACE(entry_point);
     context->regfile.rsi = (uint64_t)arg;
     context->regfile.cs = KERNEL_CODE_OFFSET;
     context->regfile.ss = 0;

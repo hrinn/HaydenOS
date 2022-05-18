@@ -4,28 +4,28 @@
 #include <stdint-gcc.h>
 #include "ioport.h"
 
-static void play_sound(uint32_t nFrequence) {
- 	uint32_t Div;
- 	uint8_t tmp;
+// static void play_sound(uint32_t nFrequence) {
+//  	uint32_t Div;
+//  	uint8_t tmp;
  
-    //Set the PIT to the desired frequency
- 	Div = 1193180 / nFrequence;
- 	outb(0x43, 0xb6);
- 	outb(0x42, (uint8_t) (Div) );
- 	outb(0x42, (uint8_t) (Div >> 8));
+//     //Set the PIT to the desired frequency
+//  	Div = 1193180 / nFrequence;
+//  	outb(0x43, 0xb6);
+//  	outb(0x42, (uint8_t) (Div) );
+//  	outb(0x42, (uint8_t) (Div >> 8));
  
-    // And play the sound using the PC speaker
- 	tmp = inb(0x61);
-  	if (tmp != (tmp | 3)) {
- 		outb(0x61, tmp | 3);
- 	}
- }
+//     // And play the sound using the PC speaker
+//  	tmp = inb(0x61);
+//   	if (tmp != (tmp | 3)) {
+//  		outb(0x61, tmp | 3);
+//  	}
+//  }
 
 void blue_screen(char *msg) {
     VGA_set_bg_color(VGA_BLUE);
     VGA_paint();
 
-    play_sound(2);
+   //  play_sound(2);
     VGA_set_fg_color(VGA_WHITE);
     VGA_display_str("HaydenOS\n\nCRITICAL ERROR!\n", 27);
     printk("%s\n", msg);

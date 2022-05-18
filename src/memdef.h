@@ -3,6 +3,8 @@
 
 #include <stdint-gcc.h>
 
+#pragma GCC diagnostic ignored "-Wpointer-arith"
+
 #define KERNEL_TEXT_START 0xffff800000000000
 #define VSPACE(func) (func + KERNEL_TEXT_START)
 
