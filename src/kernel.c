@@ -62,10 +62,28 @@ void kmain_vspace() {
     }
 }
 
-int test_readdir_cb(const char *ent_name, inode_t *inode, void *p) {
-    printk("Callback for entry name: %s\n", ent_name);
+int readfs_cb(const char *ent_name, inode_t *inode, void *p) {
+    int n_tabs = *(int *)p, i, next_tabs = n_tabs + 1;
+    char tabs[n_tabs + 1];
+
+    for (i = 0; i < n_tabs; i++) {
+        tabs[i] = '\t';
+    }
+    tabs[n_tabs] = 0;
+
+    printk("%s%s\n", tabs, ent_name);
+    if (inode->st_mode & S_IFDIR) {
+        inode->readdir(inode, VSPACE(readfs_cb), (void *)&next_tabs);
+    }
     inode->free(&inode);
     return 1;
+}
+
+void print_filesystem(superblock_t *superblock) {
+    int ntabs = 0;
+
+    printk("/:\n");
+    superblock->root_inode->readdir(superblock->root_inode, VSPACE(readfs_cb), (void *)&ntabs);
 }
 
 void kmain_thread(void *arg) {
@@ -80,5 +98,5 @@ void kmain_thread(void *arg) {
 
     FS_register(VSPACE(FAT_detect));
     superblock = FS_probe((block_dev_t *)partitions[0]);
-    superblock->root_inode->readdir(superblock->root_inode, VSPACE(test_readdir_cb), NULL);
+    print_filesystem(superblock);
 }

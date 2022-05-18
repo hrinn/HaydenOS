@@ -97,8 +97,7 @@ static inline int cluster_to_sector(FAT32_t *fat32, int cluster_num) {
 }
 
 void get_dir_ent_name(FAT_dir_ent_t *dir_ent, char *buffer) {
-    memset(buffer, 0, MAX_DE_LEN + 1);
-    strncpy(buffer, dir_ent->name, 11);
+    strncpy(buffer, dir_ent->name, MAX_DE_LEN + 1);
 }
 
 void get_single_lde_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
@@ -182,14 +181,17 @@ int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
                 get_dir_ent_name(dir_ent, name);
             }
 
-            // Create inode for directory entry
-            cluster_num = (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo;
-            ent_inode = FAT_read_inode(inode->parent_superblock, cluster_num);
-            ent_inode->st_size = dir_ent->size;
-            ent_inode->parent_inode = inode;
-            // TODO: set creation, mod times
+            if (name[0] != '.') {
+                // Create inode for directory entry
+                cluster_num = (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo;
+                ent_inode = FAT_read_inode(inode->parent_superblock, cluster_num);
+                ent_inode->st_size = dir_ent->size;
+                ent_inode->parent_inode = inode;
+                if (dir_ent->attr == FAT_ATTR_DIRECTORY) ent_inode->st_mode |= S_IFDIR;
+                // TODO: set creation, mod times
 
-            callback(name, ent_inode, p);
+                callback(name, ent_inode, p);
+            }
         }
         // TODO: Handle directories that occupy more than one sector
         // I need to consult the FAT

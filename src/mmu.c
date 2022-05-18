@@ -536,6 +536,7 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
     }
 
     action = (error_code & 0x2) ? "write" : "read";
+    if (error_code & 0x10) action = "instruction read";
     printk("PAGE FAULT: Invalid %s at %p\n", action, (void *)page);
     while (1) asm("hlt");
 }
