@@ -40,7 +40,7 @@ struct inode {
     void (*free)(inode_t **inode);
     inode_t *parent_inode;
     superblock_t *parent_superblock;
-} __attribute__((packed));
+};
 
 struct superblock {
     inode_t *root_inode;

@@ -71,7 +71,7 @@ int readfs_cb(const char *ent_name, inode_t *inode, void *p) {
     }
     tabs[n_tabs * 4] = 0;
 
-    printk("%s/%s\n", tabs, ent_name);
+    printb("%s/%s\n", tabs, ent_name);
     if (inode->st_mode & S_IFDIR) {
         inode->readdir(inode, VSPACE(readfs_cb), (void *)&next_tabs);
     }

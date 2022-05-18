@@ -63,7 +63,7 @@ typedef struct FAT_superblock {
 
 typedef struct FAT_inode {
     inode_t inode;
-    uint8_t data[512];
+    uint8_t *data;
 } FAT_inode_t;
 
 typedef struct FAT_dir_ent {
@@ -126,6 +126,9 @@ void get_long_dir_ent_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
 
 void FAT_inode_free(inode_t **inode) {
     FAT_inode_t *FAT_inode = (FAT_inode_t *)*inode;
+    if (FAT_inode->data != NULL) {
+        kfree(FAT_inode->data);
+    }
     kfree(FAT_inode);
 }
 
@@ -134,20 +137,15 @@ int FAT_read_cluster(superblock_t *sb, unsigned long cluster_num, uint8_t *buffe
     block_dev_t *dev = FAT_sb->superblock.dev;
     int sector_num = cluster_to_sector(&FAT_sb->fat32, cluster_num);
     if (dev->read_block(dev, sector_num, buffer) == -1) {
-        printk("FAT_read_cluster(): Failed to read block device\n");
+        printk("FAT_read_cluster(): Failed to read cluster %lu of block device\n", cluster_num);
         return -1;
     }
     return 1;
 }
 
-// Returns an allocated inode associated with the cluster number
-inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
+FAT_inode_t *FAT_init_inode(superblock_t *sb, unsigned long cluster_num) {
     FAT_inode_t *inode = (FAT_inode_t *)kcalloc(1, sizeof(FAT_inode_t));
-
-    if (FAT_read_cluster(sb, cluster_num, inode->data) == -1) {
-        return NULL;
-    }
-
+    
     // Set inode fields
     inode->inode.st_ino = cluster_num;
     inode->inode.parent_superblock = sb;
@@ -156,7 +154,19 @@ inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
     inode->inode.readdir = VSPACE(FAT_readdir);
     inode->inode.free = VSPACE(FAT_inode_free);
 
-    return (inode_t *)inode;    
+    return inode;
+}
+
+// Returns an allocated inode associated with the cluster number
+inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
+    FAT_inode_t *inode = FAT_init_inode(sb, cluster_num);
+    inode->data = (uint8_t *)kmalloc(512);
+
+    if (FAT_read_cluster(sb, cluster_num, inode->data) == -1) {
+        return NULL;
+    }
+
+    return (inode_t *)inode;
 }
 
 uint32_t get_next_cluster_num(FAT_superblock_t *sb, uint32_t current_cluster_num) {
@@ -176,20 +186,32 @@ uint32_t get_next_cluster_num(FAT_superblock_t *sb, uint32_t current_cluster_num
     return table_val & 0x0FFFFFFF;
 }
 
+// Takes a directory inode
+// Calls the callback function on each entry associated with directory
 int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
+    uint64_t cluster_num, ent_cluster_num;
+    uint8_t *data;
     FAT_dir_ent_t *dir_ent;
-    FAT_inode_t *FAT_inode = (FAT_inode_t *)inode;
-    inode_t *ent_inode;
-    uint32_t cluster_num = inode->st_ino, next_cluster_num;
-    uint8_t *extra_cluster = NULL, *current_cluster = FAT_inode->data;
     char name[MAX_LDE_LEN + 1];
     bool valid_classic_entry = true;
-    
-    // Parse the directory entries in the inode
-    dir_ent = (FAT_dir_ent_t *)FAT_inode->data;
-    // Read each block of the cluster in a function
-    while (dir_ent->name[0] != 0) {
-        if (dir_ent->name[0] != 0xE5) {
+    inode_t *ent_inode;
+
+    if ((inode->st_mode & S_IFDIR) == 0) {
+        printk("FAT_readdir(): Attempted to read non directory\n");
+        return -1;
+    }
+
+    data = (uint8_t *)kmalloc(512);
+
+    for (cluster_num = inode->st_ino; cluster_num < TABLE_VAL_MAX; 
+        cluster_num = get_next_cluster_num((FAT_superblock_t *)inode->parent_superblock, cluster_num))
+    {
+        // Read data associated with this cluster
+        FAT_read_cluster((superblock_t *)inode->parent_superblock, cluster_num, data);
+
+        dir_ent = (FAT_dir_ent_t *)data;
+
+        while (dir_ent->name[0] != 0 && (uint8_t *)dir_ent < data + 512) {
             if (dir_ent->attr == FAT_ATTR_LFN) {
                 // Long directory entries
                 get_long_dir_ent_name((FAT_long_dir_ent_t *)dir_ent, name);
@@ -204,8 +226,8 @@ int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
 
                 if (name[0] != '.') {
                     // Create inode for directory entry
-                    ent_inode = FAT_read_inode(inode->parent_superblock, 
-                        (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo);
+                    ent_cluster_num = (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo;
+                    ent_inode = (inode_t *)FAT_init_inode(inode->parent_superblock, ent_cluster_num);
                     ent_inode->st_size = dir_ent->size;
                     ent_inode->parent_inode = inode;
                     if (dir_ent->attr == FAT_ATTR_DIRECTORY) ent_inode->st_mode |= S_IFDIR;
@@ -214,27 +236,12 @@ int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
                     callback(name, ent_inode, p);
                 }
             }
-        }
-
-        dir_ent++;
-
-        if ((uint8_t *)dir_ent >= (current_cluster + 512)) {
-            // Consult FAT to find next cluster
-            next_cluster_num = get_next_cluster_num((FAT_superblock_t *)inode->parent_superblock, cluster_num);
-            if (next_cluster_num >= TABLE_VAL_MAX) {
-                return 1; // This was the last cluster in the chain
-            }
             
-            // Need to read the data of the next cluster
-            if (extra_cluster != NULL) kfree(extra_cluster);
-            extra_cluster = (uint8_t *)kmalloc(512);
-            FAT_read_cluster(inode->parent_superblock, next_cluster_num, extra_cluster);
-            current_cluster = extra_cluster;
-            cluster_num = next_cluster_num;
-            dir_ent = (FAT_dir_ent_t *)extra_cluster;
+            dir_ent++;
         }
     }
 
+    kfree(data);
     return 1;
 }
 
@@ -257,7 +264,7 @@ superblock_t *FAT_detect(block_dev_t *dev) {
     superblock->superblock.read_inode = VSPACE(FAT_read_inode);
 
     // Setup root inode
-    superblock->superblock.root_inode = FAT_read_inode((superblock_t *)superblock, superblock->fat32.root_cluster_number);
+    superblock->superblock.root_inode = (inode_t *)FAT_init_inode((superblock_t *)superblock, superblock->fat32.root_cluster_number);
     superblock->superblock.root_inode->st_mode |= S_IFDIR;
 
 
