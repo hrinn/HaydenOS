@@ -64,25 +64,27 @@ void kmain_vspace() {
 
 int readfs_cb(const char *ent_name, inode_t *inode, void *p) {
     int n_tabs = *(int *)p, i, next_tabs = n_tabs + 1;
-    char tabs[n_tabs + 1];
+    char tabs[(n_tabs * 4) + 1];
 
-    for (i = 0; i < n_tabs; i++) {
-        tabs[i] = '\t';
+    for (i = 0; i < (n_tabs * 4); i++) {
+        tabs[i] = ' ';
     }
-    tabs[n_tabs] = 0;
+    tabs[n_tabs * 4] = 0;
 
-    printk("%s%s\n", tabs, ent_name);
+    printk("%s/%s\n", tabs, ent_name);
     if (inode->st_mode & S_IFDIR) {
         inode->readdir(inode, VSPACE(readfs_cb), (void *)&next_tabs);
     }
+
     inode->free(&inode);
+
     return 1;
 }
 
 void print_filesystem(superblock_t *superblock) {
     int ntabs = 0;
 
-    printk("/:\n");
+    printk("\nFilesystem entries:\n");
     superblock->root_inode->readdir(superblock->root_inode, VSPACE(readfs_cb), (void *)&ntabs);
 }
 

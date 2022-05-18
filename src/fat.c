@@ -3,6 +3,7 @@
 #include "string.h"
 #include "printk.h"
 #include "memdef.h"
+#include <stdbool.h>
 #include <stdint-gcc.h>
 
 #define FAT_ATTR_READ_ONLY 0x01
@@ -15,6 +16,8 @@
 
 #define MAX_DE_LEN 11
 #define MAX_LDE_LEN 255
+#define DIR_ENTS_PER_SECTOR 16
+#define TABLE_VAL_MAX 0x0FFFFFF8
 
 typedef struct FAT_BPB {
     uint8_t jmp[3];
@@ -100,7 +103,8 @@ void get_dir_ent_name(FAT_dir_ent_t *dir_ent, char *buffer) {
     strncpy(buffer, dir_ent->name, MAX_DE_LEN + 1);
 }
 
-void get_single_lde_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
+// Takes a long directory entry and places its name at the correct position in the buffer
+void get_long_dir_ent_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
     int i, num;
 
     // Position character pointer at beginning of this string portion
@@ -120,33 +124,27 @@ void get_single_lde_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
     }
 }
 
-// Takes the first long directory entry in a series
-// Places its name in the buffer
-// Returns number of long entries associated with this file
-int get_long_dir_ent_name(FAT_long_dir_ent_t *dir_ent, char *buffer) {
-    int n = 0;
-    memset(buffer, 0, MAX_LDE_LEN + 1);
-    while (dir_ent->attr == FAT_ATTR_LFN) {
-        get_single_lde_name(dir_ent, buffer);
-        dir_ent++;
-        n++;
-    }
-    return n;
-}
-
 void FAT_inode_free(inode_t **inode) {
     FAT_inode_t *FAT_inode = (FAT_inode_t *)*inode;
     kfree(FAT_inode);
 }
 
+int FAT_read_cluster(superblock_t *sb, unsigned long cluster_num, uint8_t *buffer) {
+    FAT_superblock_t *FAT_sb = (FAT_superblock_t *)sb;
+    block_dev_t *dev = FAT_sb->superblock.dev;
+    int sector_num = cluster_to_sector(&FAT_sb->fat32, cluster_num);
+    if (dev->read_block(dev, sector_num, buffer) == -1) {
+        printk("FAT_read_cluster(): Failed to read block device\n");
+        return -1;
+    }
+    return 1;
+}
+
 // Returns an allocated inode associated with the cluster number
 inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
     FAT_inode_t *inode = (FAT_inode_t *)kcalloc(1, sizeof(FAT_inode_t));
-    FAT_superblock_t *FAT_sb = (FAT_superblock_t *)sb;
-    int sector_num = cluster_to_sector(&FAT_sb->fat32, cluster_num);
-    
-    if (sb->dev->read_block(sb->dev, sector_num, inode->data) == -1) {
-        printk("FAT_read_inode(): Failed to read block device\n");
+
+    if (FAT_read_cluster(sb, cluster_num, inode->data) == -1) {
         return NULL;
     }
 
@@ -161,12 +159,31 @@ inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
     return (inode_t *)inode;    
 }
 
+uint32_t get_next_cluster_num(inode_t *inode) {
+    // Get FAT associated with inode
+    uint8_t FAT[512];
+    block_dev_t *dev = inode->parent_superblock->dev;
+    int first_fat = ((FAT_superblock_t *)inode->parent_superblock)->fat32.FAT_BPB.reserved_sectors;
+    uint32_t table_val;
+    
+    uint32_t fat_offset = inode->st_ino * 4;
+    uint32_t fat_sector = first_fat + (fat_offset / 512);
+    uint32_t ent_offset = fat_offset % 512;
+
+    dev->read_block(dev, fat_sector, FAT);
+
+    table_val = *(uint32_t *)&FAT[ent_offset];
+    return table_val & 0x0FFFFFFF;
+}
+
 int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
     FAT_dir_ent_t *dir_ent;
     FAT_inode_t *FAT_inode = (FAT_inode_t *)inode;
     inode_t *ent_inode;
+    uint32_t cluster_num, next_cluster_num;
+    uint8_t *extra_cluster = NULL, *current_cluster = FAT_inode->data;
     char name[MAX_LDE_LEN + 1];
-    uint32_t cluster_num;
+    bool valid_classic_entry = true;
     
     // Parse the directory entries in the inode
     dir_ent = (FAT_dir_ent_t *)FAT_inode->data;
@@ -174,29 +191,46 @@ int FAT_readdir(inode_t *inode, readdir_cb callback, void *p) {
         if (dir_ent->name[0] != 0xE5) {
             if (dir_ent->attr == FAT_ATTR_LFN) {
                 // Long directory entries
-                dir_ent += get_long_dir_ent_name(
-                    (FAT_long_dir_ent_t *)dir_ent, name);
+                get_long_dir_ent_name((FAT_long_dir_ent_t *)dir_ent, name);
+                valid_classic_entry = false;
             } else {
                 // Normal directory entry
-                get_dir_ent_name(dir_ent, name);
-            }
+                if (valid_classic_entry) {
+                    get_dir_ent_name(dir_ent, name);
+                } else {
+                    valid_classic_entry = true;
+                }
 
-            if (name[0] != '.') {
-                // Create inode for directory entry
-                cluster_num = (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo;
-                ent_inode = FAT_read_inode(inode->parent_superblock, cluster_num);
-                ent_inode->st_size = dir_ent->size;
-                ent_inode->parent_inode = inode;
-                if (dir_ent->attr == FAT_ATTR_DIRECTORY) ent_inode->st_mode |= S_IFDIR;
-                // TODO: set creation, mod times
+                if (name[0] != '.') {
+                    // Create inode for directory entry
+                    cluster_num = (dir_ent->cluster_hi << 16) | dir_ent->cluster_lo;
+                    ent_inode = FAT_read_inode(inode->parent_superblock, cluster_num);
+                    ent_inode->st_size = dir_ent->size;
+                    ent_inode->parent_inode = inode;
+                    if (dir_ent->attr == FAT_ATTR_DIRECTORY) ent_inode->st_mode |= S_IFDIR;
+                    // TODO: set creation, mod times
 
-                callback(name, ent_inode, p);
+                    callback(name, ent_inode, p);
+                }
             }
         }
-        // TODO: Handle directories that occupy more than one sector
-        // I need to consult the FAT
 
         dir_ent++;
+
+        if ((uint8_t *)dir_ent >= (current_cluster + 512)) {
+            // Consult FAT to find next cluster
+            next_cluster_num = get_next_cluster_num(inode);
+            if (next_cluster_num >= TABLE_VAL_MAX) {
+                return 1; // This was the last cluster in the chain
+            }
+            
+            // Need to read the data of the next cluster
+            if (extra_cluster != NULL) kfree(extra_cluster);
+            extra_cluster = (uint8_t *)kmalloc(512);
+            FAT_read_cluster(inode->parent_superblock, next_cluster_num, extra_cluster);
+            current_cluster = extra_cluster;
+            dir_ent = (FAT_dir_ent_t *)extra_cluster;
+        }
     }
 
     return 1;

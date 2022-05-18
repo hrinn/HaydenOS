@@ -89,6 +89,10 @@ bool is_ATA_request_queued(ATA_sync_t *sync, ATA_request_t *req) {
     return false;
 }
 
+bool is_ATA_queue_empty(ATA_sync_t *sync) {
+    return sync->req_head == NULL;
+}
+
 void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
     ATA_sync_t *sync = (irq == PRIMARY_IRQ) ? &ATA_primary_sync : NULL;
     ATA_request_t *request;
@@ -106,7 +110,7 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
         }
 
         // Unblock head of ATA blocked queue
-        PROC_unblock_all(&sync->blocked);
+        PROC_unblock_head(&sync->blocked);
     }
 
     // Read status register to clear interrupt flag
@@ -114,32 +118,9 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
     IRQ_end_of_interrupt(irq);
 }
 
-int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
-    ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
-    ATA_sync_t *sync = (ata_dev->ata_base == PRIMARY_BASE) ? &ATA_primary_sync : NULL;
-
-    if (sync == NULL) {
-        printk("ATA_read_block(): Unsupported read from secondary controller\n");
-        return -1;
-    }
-    
+void ATA_process_read_request(ATA_block_dev_t *ata_dev, uint64_t blk_num) {
     uint8_t drive_head;
     uint8_t *lba_n = (uint8_t *)&blk_num;
-
-    if (blk_num >= dev->tot_len) {
-        printk("ATA_read_block(): Tried to read past end of drive\n");
-        return -1;
-    }
-
-    // Create an ATA request for the operation
-    ATA_request_t read_request;
-    read_request.dst = dst;
-    read_request.next = NULL;
-    read_request.dev = ata_dev;
-    append_ATA_request(sync, &read_request);
-
-    // Block until ATA request is at head of queue
-    wait_event_interruptable(&sync->blocked, !is_ATA_request_head(sync, &read_request));
 
     // Select master / slave
     drive_head = (ata_dev->slave) ? 0x50: 0x40;
@@ -157,9 +138,50 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
 
     // Send read sectors command
     outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
+}
 
-    // Block until ATA request has been processed by interrupt
-    wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
+int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
+    ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
+    ATA_sync_t *sync = (ata_dev->ata_base == PRIMARY_BASE) ? &ATA_primary_sync : NULL;
+
+    if (sync == NULL) {
+        printk("ATA_read_block(): Unsupported read from secondary controller\n");
+        return -1;
+    }
+
+    if (blk_num >= dev->tot_len) {
+        printk("ATA_read_block(): Tried to read past end of drive\n");
+        return -1;
+    }
+
+    // Create an ATA request for the operation
+    ATA_request_t read_request;
+    read_request.dst = dst;
+    read_request.next = NULL;
+    read_request.dev = ata_dev;
+
+    CLI;
+    if (is_ATA_queue_empty(sync)) {
+        // Begin request immediately
+        append_ATA_request(sync, &read_request);
+        STI;
+        ATA_process_read_request(ata_dev, blk_num);
+        wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
+    } else {
+        // Block now
+        append_ATA_request(sync, &read_request);
+        STI;
+        wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
+    }
+
+    CLI;
+    if (!is_ATA_queue_empty(sync)) {
+        // Someone else is waiting, unblock them
+        STI;
+        ATA_process_read_request(ata_dev, blk_num);
+    } else {
+        STI;
+    }
 
     return 1;
 }
