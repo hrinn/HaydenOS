@@ -3,6 +3,8 @@
 #include "kmalloc.h"
 #include "printk.h"
 #include <stddef.h>
+#include "string.h"
+#include "memdef.h"
 
 typedef struct FS_impl {
     FS_detect_cb probe;
@@ -10,6 +12,8 @@ typedef struct FS_impl {
 } FS_impl_t;
 
 static FS_impl_t *head, *tail;
+
+inode_t *FS_inode_for_path_helper(char *path, inode_t *cwd);
 
 // Registers a FS implementation with the VFS
 void FS_register(FS_detect_cb probe) {
@@ -37,14 +41,79 @@ superblock_t *FS_probe(block_dev_t *dev) {
     return NULL;
 }
 
+int copy_path_item(char *path, char *dst) {
+    int i = 0;
+
+    for (i = 0; path[i] && path[i] != '/'; i++) {
+        dst[i] = path[i];
+    }
+    dst[i] = 0;
+
+    return i;
+}
+
+typedef struct path_search {
+    char *name;
+    inode_t *result;
+} path_search_t;
+
+void replace_slashes_with_null(char *str) {
+    while (*str) {
+        if (*str == '/') *str = 0;
+        str++;
+    }
+}
+
+int path_cb(const char *ent_name, inode_t *inode, void *p) {
+    path_search_t *path_search = (path_search_t *)p;
+
+    if (strcmp(ent_name, path_search->name) == 0) {
+        path_search->result = inode;
+    } else {
+        inode->free(&inode);
+    }
+    return 1;
+}
+
 // Walks directory trees
-inode_t *FS_inode_for_path(const char *path, inode_t *cwd) {
-    // Parse out first component of path
+inode_t *FS_inode_for_path(char *path, inode_t *cwd) {
+    path_search_t path_search;
+    char path_item[255];
+    int offset;
 
-    // Call readdir on the inode, passing in the entry name to match
+    if (path[0] == '/') {
+        path++;
+        cwd = cwd->parent_superblock->root_inode;
+    }
 
-    // In the callback function, if a match is found, recursively call readdir on the next inode
+    if (*path == 0) return cwd;
 
-    // Repeat
-    return NULL;
+    while (*path) {
+        // Get single entry
+        offset = copy_path_item(path, path_item);
+        path_search.name = path_item;
+
+        // Read directories, store result
+        if ((cwd->st_mode & S_IFDIR) == 0) {
+            return NULL;
+        }
+
+        cwd->readdir(cwd, VSPACE(path_cb), (void *)&path_search);
+
+        // Handle no result
+        if (path_search.result == NULL) {
+            return NULL;
+        }
+
+        // Check if result is final
+        if (*(path + offset) == 0) {
+            break;
+        }
+
+        // Iterate to next level of directory, and next path item
+        cwd = path_search.result;
+        path += offset + 1;
+    }
+
+    return path_search.result;
 }

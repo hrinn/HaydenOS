@@ -21,6 +21,9 @@ typedef struct superblock superblock_t;
 typedef int (*readdir_cb)(const char *, inode_t *, void *);
 
 struct file {
+    superblock_t *superblock;
+    off_t cursor;
+    unsigned long first_cluster;
     int (*close)(file_t **file);
     int (*read)(file_t *file, char *dst, int len);
     int (*write)(file_t *file, char *dst, int len);
@@ -34,7 +37,7 @@ struct inode {
     uid_t st_uid;
     gid_t st_gid;
     off_t st_size;
-    file_t *(*open)(unsigned long inode);
+    file_t *(*open)(inode_t *inode);
     int (*readdir)(inode_t *inode, readdir_cb callback, void *p);
     int (*unlink)(inode_t *inode, const char *name);
     void (*free)(inode_t **inode);
@@ -55,6 +58,6 @@ typedef superblock_t *(*FS_detect_cb)(struct block_dev *dev);
 
 void FS_register(FS_detect_cb probe);
 superblock_t *FS_probe(block_dev_t *dev);
-inode_t *FS_inode_for_path(const char *path, inode_t *cwd);
+inode_t *FS_inode_for_path(char *path, inode_t *cwd);
 
 #endif

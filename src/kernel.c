@@ -12,6 +12,8 @@
 #include <stddef.h>
 #include "keyboard.h"
 #include "vfs.h"
+#include "snakes.h"
+#include "string.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -92,6 +94,9 @@ void kmain_thread(void *arg) {
     part_block_dev_t *partitions[4];
     ATA_block_dev_t *drive;
     superblock_t *superblock;
+    inode_t *inode;
+    char buffer[513];
+    file_t *file;
 
     printb("\nExecuting in kthread\n");
 
@@ -100,5 +105,18 @@ void kmain_thread(void *arg) {
 
     FS_register(VSPACE(FAT_detect));
     superblock = FS_probe((block_dev_t *)partitions[0]);
-    print_filesystem(superblock);
+    // print_filesystem(superblock);
+
+    inode = FS_inode_for_path("/test/war-and-peace.txt", superblock->root_inode);
+    file = inode->open(inode);
+
+    // Read tolstoy
+    printb("\n\n\n");
+    KBD_init();
+
+    do {
+        buffer[512] = 0;
+        file->read(file, buffer, 512);
+        printb("%s", buffer);
+    } while (getc());
 }

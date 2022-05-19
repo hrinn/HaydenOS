@@ -93,6 +93,7 @@ typedef struct FAT_long_dir_ent {
 } __attribute__((packed)) FAT_long_dir_ent_t;
 
 int FAT_readdir(inode_t *inode, readdir_cb callback, void *p);
+uint32_t get_next_cluster_num(FAT_superblock_t *sb, uint32_t current_cluster_num);
 
 static inline int cluster_to_sector(FAT32_t *fat32, int cluster_num) {
     int sector_offset = fat32->FAT_BPB.reserved_sectors + fat32->sectors_per_fat * fat32->FAT_BPB.num_fats;
@@ -143,6 +144,72 @@ int FAT_read_cluster(superblock_t *sb, unsigned long cluster_num, uint8_t *buffe
     return 1;
 }
 
+int FAT_file_close(file_t **file) {
+    kfree(*file);
+    return 1;
+}
+
+int FAT_file_lseek(file_t *file, off_t offset) {
+    file->cursor = offset;
+    return 1;
+}
+
+int min(int a, int b) {
+    if (a < b) return a;
+    return b;
+}
+
+int FAT_file_read(file_t *file, char *dst, int len) {
+    int i, n, cluster_offset = (file->cursor / 512);
+    uint64_t cluster_num = file->first_cluster;
+    int bytes_read = 0;
+    uint8_t data[512], *data_ptr, *data_end = data + 512;
+
+    // Get cluster where read will begin
+    for (i = 0; i < cluster_offset; i++) {
+        if (cluster_num >= TABLE_VAL_MAX) {
+            return bytes_read; // Attempted to read past end of file
+        }
+        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->superblock, cluster_num);
+    }
+
+    for (; cluster_num < TABLE_VAL_MAX && bytes_read < len;
+        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->superblock, cluster_num))
+    {
+        // Read the cluster's data
+        FAT_read_cluster(file->superblock, cluster_num, data);
+
+        // Position data pointer at correct offset
+        data_ptr = data + (file->cursor % 512);
+
+        // Copy data bytes into dest
+        n = min(len - bytes_read, data_end - data_ptr);
+        for (i = 0; i < n; i++) {
+            dst[bytes_read + i] = data_ptr[i];
+        }
+
+        bytes_read += i;
+        file->cursor += i;
+    }
+
+    return bytes_read;
+}
+
+file_t *FAT_file_open(inode_t *inode) {
+    file_t *file = (file_t *)kmalloc(sizeof(file_t));
+
+    file->superblock = inode->parent_superblock;
+    file->first_cluster = inode->st_ino;
+    file->cursor = 0;
+    file->close = VSPACE(FAT_file_close);
+    file->read = VSPACE(FAT_file_read);
+    file->write = NULL;
+    file->lseek = VSPACE(FAT_file_lseek);
+    file->mmap = NULL;
+
+    return file;
+}
+
 FAT_inode_t *FAT_init_inode(superblock_t *sb, unsigned long cluster_num) {
     FAT_inode_t *inode = (FAT_inode_t *)kcalloc(1, sizeof(FAT_inode_t));
     
@@ -153,6 +220,8 @@ FAT_inode_t *FAT_init_inode(superblock_t *sb, unsigned long cluster_num) {
     // Set inode methods
     inode->inode.readdir = VSPACE(FAT_readdir);
     inode->inode.free = VSPACE(FAT_inode_free);
+    inode->inode.open = VSPACE(FAT_file_open);
+    inode->inode.unlink = NULL;
 
     return inode;
 }
