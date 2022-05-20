@@ -4,6 +4,7 @@
 #include "irq.h"
 #include <stddef.h>
 #include "gdt.h"
+#include "printk.h"
 
 #define NUM_SYS_CALLS 256
 
@@ -32,5 +33,6 @@ void set_sys_call(uint8_t num, sys_call_f sys_call) {
 }
 
 void sys_call_isr(uint8_t irq, unsigned int error_code, void *arg) {
+    // Set error code to the system call index??
     sys_calls[sys_call_index]();
 }

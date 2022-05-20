@@ -60,6 +60,7 @@ void kmain_vspace() {
 
     while (1) {
         PROC_run();
+        // printk("Post PROC_run(), int status: %hx\n", check_int());
         asm ("hlt");
     }
 }
@@ -93,30 +94,42 @@ void print_filesystem(superblock_t *superblock) {
 void kmain_thread(void *arg) {
     part_block_dev_t *partitions[4];
     ATA_block_dev_t *drive;
-    superblock_t *superblock;
-    inode_t *inode;
+    // superblock_t *superblock;
+    // inode_t *inode;
     char buffer[513];
-    file_t *file;
+    // file_t *file;
+    int i = 0;
 
     printb("\nExecuting in kthread\n");
 
     drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
     parse_MBR(drive, partitions);
 
-    FS_register(VSPACE(FAT_detect));
-    superblock = FS_probe((block_dev_t *)partitions[0]);
+    // Read every block of the partition
+
+    block_dev_t *dev = (block_dev_t *)partitions[0];
+    while (1) {
+        dev->read_block(dev, i++, buffer);
+        buffer[512] = 0;
+        // printb("read: %s", buffer);
+    }
+
+    // FS_register(VSPACE(FAT_detect));
+    // superblock = FS_probe((block_dev_t *)partitions[0]);
     // print_filesystem(superblock);
 
-    inode = FS_inode_for_path("/test/war-and-peace.txt", superblock->root_inode);
-    file = inode->open(inode);
+    // inode = FS_inode_for_path("/test/war-and-peace.txt", superblock->root_inode);
+    // file = inode->open(inode);
 
     // Read tolstoy
-    printb("\n\n\n");
-    KBD_init();
+    // printb("\n\n\n");
+    // KBD_init();
 
-    do {
-        buffer[512] = 0;
-        file->read(file, buffer, 512);
-        printb("%s", buffer);
-    } while (getc());
+    // int n;
+
+    // do {
+    //     buffer[512] = 0;
+    //     n = file->read(file, buffer, 512);
+    //     printb("%s", buffer);
+    // } while (n == 512);
 }

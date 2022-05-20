@@ -119,7 +119,7 @@ void PROC_unblock_all(proc_queue_t *queue) {
         sched_admit(current);
     }
 
-    yield(); // Context switch
+    // yield(); // Context switch
 }
 
 void PROC_unblock_head(proc_queue_t *queue) {
@@ -130,7 +130,7 @@ void PROC_unblock_head(proc_queue_t *queue) {
     current = pop_proc(queue);
     if (current != NULL) {
         sched_admit(current);
-        yield(); // Context switch
+        // yield(); // Context switch
     }
 }
 

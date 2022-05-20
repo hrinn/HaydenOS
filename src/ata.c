@@ -110,12 +110,24 @@ bool is_ATA_queue_empty(ATA_sync_t *sync) {
     return sync->req_head == NULL;
 }
 
+int count_ATA_queue(ATA_sync_t *sync) {
+    int i = 0;
+    ATA_request_t *current = sync->req_head;
+    while (current) {
+        i++;
+        current = current->next;
+    }
+    return i;
+}
+
 void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
     ATA_sync_t *sync = (irq == PRIMARY_IRQ) ? &ATA_primary_sync : NULL;
     ATA_request_t *request;
     ATA_block_dev_t *ata_dev;
     uint16_t *dst;
     int i;
+
+    printk("ATA ISR!\n");
 
     if (sync != NULL && (request = pop_ATA_request(sync)) != NULL) {
         ata_dev = request->dev;
@@ -131,11 +143,16 @@ void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
         }
 
         // Unblock head of ATA blocked queue
+        printk("Before PROC unblocked, ints: %hx\n", check_int());
         PROC_unblock_head(&sync->blocked);
     }
 
     // Read status register to clear interrupt flag
-    (irq == PRIMARY_IRQ) ? inb(STAT_REG(PRIMARY_BASE)) : inb(STAT_REG(SECONDARY_BASE));
+    if (inb(STAT_REG(PRIMARY_BASE)) & STAT_DRQ) {
+        printk("ATA_isr(): DRQ high!\n");
+    } else {
+        printk("ATA_isr(): DRQ low\n");
+    }
     IRQ_end_of_interrupt(irq);
 }
 
@@ -163,6 +180,9 @@ void ATA_process_read_request(ATA_sync_t *sync) {
     outb(CYL_LOW_REG(ata_dev->ata_base), lba_n[1]);
     outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[2]);
 
+    // Check alternate status register before sending command
+    // printk("ATA status: 0x%x\n", inb(ALT_STAT_REG(ata_dev->ata_base)));
+
     // Send read sectors command
     outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
 }
@@ -181,6 +201,8 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
         return -1;
     }
 
+    printk("ATA READ!\n");
+
     // Create an ATA request for the operation
     ATA_request_t read_request;
     read_request.dst = dst;
@@ -194,13 +216,14 @@ int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
         // Begin request immediately
         append_ATA_request(sync, &read_request);
         ATA_process_read_request(sync);
-        STI;
         wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
     } else {
         // Block now
         append_ATA_request(sync, &read_request);
         wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
     }
+
+    printk("ATA READ DONE!\n");
 
     CLI;
     if (is_unprocessed_ATA_request_queued(sync)) {
