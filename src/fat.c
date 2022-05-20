@@ -154,10 +154,11 @@ int FAT_file_lseek(file_t *file, off_t offset) {
     return 1;
 }
 
-int min(int a, int b) {
+unsigned long int min(unsigned long int a, unsigned long int b) {
     if (a < b) return a;
     return b;
 }
+
 
 int FAT_file_read(file_t *file, char *dst, int len) {
     int i, n, cluster_offset = (file->cursor / 512);
@@ -170,20 +171,21 @@ int FAT_file_read(file_t *file, char *dst, int len) {
         if (cluster_num >= TABLE_VAL_MAX) {
             return bytes_read; // Attempted to read past end of file
         }
-        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->superblock, cluster_num);
+        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->inode->parent_superblock, cluster_num);
     }
 
     for (; cluster_num < TABLE_VAL_MAX && bytes_read < len;
-        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->superblock, cluster_num))
+        cluster_num = get_next_cluster_num((FAT_superblock_t *)file->inode->parent_superblock, cluster_num))
     {
         // Read the cluster's data
-        FAT_read_cluster(file->superblock, cluster_num, data);
+        FAT_read_cluster(file->inode->parent_superblock, cluster_num, data);
 
         // Position data pointer at correct offset
         data_ptr = data + (file->cursor % 512);
 
         // Copy data bytes into dest
-        n = min(len - bytes_read, data_end - data_ptr);
+        n = min(len - bytes_read, min(data_end - data_ptr, file->inode->st_size - file->cursor));
+        // Need to also determine how many bytes are in the last cluster
         for (i = 0; i < n; i++) {
             dst[bytes_read + i] = data_ptr[i];
         }
@@ -198,7 +200,7 @@ int FAT_file_read(file_t *file, char *dst, int len) {
 file_t *FAT_file_open(inode_t *inode) {
     file_t *file = (file_t *)kmalloc(sizeof(file_t));
 
-    file->superblock = inode->parent_superblock;
+    file->inode = inode;
     file->first_cluster = inode->st_ino;
     file->cursor = 0;
     file->close = VSPACE(FAT_file_close);

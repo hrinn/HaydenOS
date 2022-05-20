@@ -21,7 +21,7 @@ typedef struct superblock superblock_t;
 typedef int (*readdir_cb)(const char *, inode_t *, void *);
 
 struct file {
-    superblock_t *superblock;
+    inode_t *inode;
     off_t cursor;
     unsigned long first_cluster;
     int (*close)(file_t **file);
