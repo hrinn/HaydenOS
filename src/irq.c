@@ -188,9 +188,6 @@ void IRQ_init() {
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
     idt[SYS_CALL_IRQ].ist = SYS_CALL_IST;
 
-    // Set sys call irq as a trap gate
-    idt[SYS_CALL_IRQ].type = TRAP_GATE;
-
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);
 
@@ -205,7 +202,7 @@ void IRQ_init() {
     PIC_remap();
 
     // Set interrupt flag
-    sti();
+    STI;
 }
 
 void IRQ_set_mask(uint8_t irq) {

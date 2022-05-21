@@ -30,7 +30,6 @@ int part_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     part_block_dev_t *part = (part_block_dev_t *)dev;
 
     if (blk_num >= part->num_sectors) {
-        printk("part_read_block(): Tried to read past end of partition\n");
         return -1;
     }
 

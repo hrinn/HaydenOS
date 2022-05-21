@@ -26,20 +26,15 @@ void PROC_init(void) {
 }
 
 // Drives the multitasking system
+// Must be entered with interrupts disabled
 void PROC_run(void) {
-    uint16_t int_en = check_int();
-    if (int_en) cli();
     curr_proc = &orig_proc;
     next_proc = &orig_proc;
 
     if (!are_procs_scheduled()) {
-        if (int_en) sti();
         return;
     }
 
-    if (int_en) sti();
-    // This yield runs on its own stack so it will first generated a page fault
-    // Returning from this page fault 
     yield();
 }
 
@@ -118,8 +113,6 @@ void PROC_unblock_all(proc_queue_t *queue) {
     while ((current = pop_proc(queue)) != NULL) {
         sched_admit(current);
     }
-
-    // yield(); // Context switch
 }
 
 void PROC_unblock_head(proc_queue_t *queue) {
@@ -130,7 +123,6 @@ void PROC_unblock_head(proc_queue_t *queue) {
     current = pop_proc(queue);
     if (current != NULL) {
         sched_admit(current);
-        // yield(); // Context switch
     }
 }
 

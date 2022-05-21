@@ -96,7 +96,7 @@ void init_hw_write() {
 int SER_write(const char *buff, int len) {
     int i = 0;
     uint16_t int_en = check_int();
-    if (int_en) cli();
+    if (int_en) CLI;
 
     while (buff[i] && i < len) {
         if (producer_write(buff[i], &state)) {
@@ -108,7 +108,7 @@ int SER_write(const char *buff, int len) {
     }
     
     init_hw_write();
-    if (int_en) sti();
+    if (int_en) STI;
     return i;
 }
 

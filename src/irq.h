@@ -6,6 +6,7 @@
 
 #define CLI asm volatile ("cli")
 #define STI asm volatile ("sti")
+#define NOP asm volatile ("nop")
 
 typedef void (*irq_handler_t)(uint8_t irq, uint32_t error_code, void *arg);
 
@@ -23,13 +24,5 @@ void IRQ_end_of_interrupt(uint8_t irq);
 extern uint16_t check_int(void);
 
 void apply_isr_offset(uint64_t offset);
-
-static inline void cli() {
-    asm volatile ("cli");
-}
-
-static inline void sti() {
-    asm volatile ("sti");
-}
 
 #endif

@@ -197,6 +197,17 @@ int FAT_file_read(file_t *file, char *dst, int len) {
     return bytes_read;
 }
 
+int FAT_file_mmap(file_t *file, void *vaddr) {
+    off_t orig_cursor = file->cursor;
+    char *addr = (char *)vaddr;
+
+    FAT_file_lseek(file, 0);
+    FAT_file_read(file, addr, file->inode->st_size);
+    FAT_file_lseek(file, orig_cursor);
+
+    return 1;
+}
+
 file_t *FAT_file_open(inode_t *inode) {
     file_t *file = (file_t *)kmalloc(sizeof(file_t));
 
@@ -207,7 +218,7 @@ file_t *FAT_file_open(inode_t *inode) {
     file->read = VSPACE(FAT_file_read);
     file->write = NULL;
     file->lseek = VSPACE(FAT_file_lseek);
-    file->mmap = NULL;
+    file->mmap = VSPACE(FAT_file_mmap);
 
     return file;
 }

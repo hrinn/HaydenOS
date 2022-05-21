@@ -17,19 +17,19 @@ static uint8_t bg_color = VGA_BLACK;
 
 void VGA_clear() {
     uint16_t int_en = check_int();
-    if (int_en) cli();
+    if (int_en) CLI;
 
     memset(vga, 0, VGA_WIDTH * VGA_HEIGHT * 2);
     cursor = 0;
 
-    if (int_en) sti();
+    if (int_en) STI;
 }
 
 void VGA_paint() {
     int i;
     uint16_t color;
     uint16_t int_en = check_int();
-    if (int_en) cli();
+    if (int_en) CLI;
 
     color = (bg_color << 12) | (fg_color << 8);
     for (i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
@@ -37,7 +37,7 @@ void VGA_paint() {
     }
     cursor = 0;
 
-    if (int_en) sti();
+    if (int_en) STI;
 }
 
 void scroll() {
@@ -48,7 +48,7 @@ void scroll() {
 
 void VGA_display_char(char c) {
     uint16_t int_en = check_int();
-    if (int_en) cli();
+    if (int_en) CLI;
 
     switch (c) {
         case '\n':
@@ -70,7 +70,7 @@ void VGA_display_char(char c) {
         scroll();
     }
 
-    if (int_en) sti();
+    if (int_en) STI;
 }
 
 void VGA_display_str(const char *s, int len) {
