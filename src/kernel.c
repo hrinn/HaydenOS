@@ -148,26 +148,6 @@ void md5_file(char *path, superblock_t *superblock) {
     MDPrint(digest);
 }
 
-void md5_file_mmap(char *path, superblock_t *superblock) {
-    file_t *file;
-    inode_t *inode;
-    inode = FS_inode_for_path(path, superblock->root_inode);
-    file = inode->open(inode);
-    MD5_CTX context;
-    unsigned char digest [16];
-
-    printk("\nMD5 of %s:\n", path);
-
-    char *addr = (char *)kmalloc(inode->st_size);
-    file->mmap(file, (void *)addr);
-    MD5Init(&context);
-    MD5Update(&context, (unsigned char *)addr, inode->st_size);
-    MD5Final(digest, &context);
-    file->close(&file);
-    kfree(addr);
-    MDPrint(digest);
-}
-
 void md5_test() {
     char *message = "This is a shorter file for testing the filesystem\n";
     MD5_CTX context;
@@ -195,5 +175,5 @@ void kmain_thread(void *arg) {
     print_filesystem(superblock);
     md5_file("/test/short.txt", superblock);
     md5_file("/test/heart-of-darkness.txt", superblock);
-    md5_file_mmap("/test/war-and-peace.txt", superblock);
+    md5_file("/test/war-and-peace.txt", superblock);
 }

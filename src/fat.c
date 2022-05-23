@@ -251,9 +251,20 @@ inode_t *FAT_read_inode(superblock_t *sb, unsigned long cluster_num) {
     return (inode_t *)inode;
 }
 
+uint8_t *get_FAT(block_dev_t *dev, uint32_t fat_sector) {
+    static uint8_t cached_FAT[512];
+    static uint32_t cached_sector = 0;
+
+    if (cached_sector != fat_sector) {
+        dev->read_block(dev, fat_sector, cached_FAT);
+        cached_sector = fat_sector;
+    }
+
+    return cached_FAT;
+}
+
 uint32_t get_next_cluster_num(FAT_superblock_t *sb, uint32_t current_cluster_num) {
     // Get FAT associated with inode
-    uint8_t FAT[512];
     block_dev_t *dev = sb->superblock.dev;
     int first_fat = sb->fat32.FAT_BPB.reserved_sectors;
     uint32_t table_val;
@@ -262,9 +273,7 @@ uint32_t get_next_cluster_num(FAT_superblock_t *sb, uint32_t current_cluster_num
     uint32_t fat_sector = first_fat + (fat_offset / 512);
     uint32_t ent_offset = fat_offset % 512;
 
-    dev->read_block(dev, fat_sector, FAT);
-
-    table_val = *(uint32_t *)&FAT[ent_offset];
+    table_val = *(uint32_t *)&get_FAT(dev, fat_sector)[ent_offset];
     return table_val & 0x0FFFFFFF;
 }
 
