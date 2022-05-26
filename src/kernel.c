@@ -15,7 +15,7 @@
 #include "snakes.h"
 #include "string.h"
 #include "kmalloc.h"
-#include "md5.h"
+#include "sys_call_ints.h"
 
 #define HALT_LOOP while(1) asm("hlt")
 
@@ -110,70 +110,30 @@ void print_file_by_path(char *path, superblock_t *superblock) {
     file->close(&file);
 }
 
-void print_partition(part_block_dev_t *part) {
-    block_dev_t *dev = (block_dev_t *)part;
-    char buffer[513];
-    int i = 0;
-    buffer[512] = 0;
-    while (dev->read_block(dev, i++, buffer) != -1) {
-        printb("%s", buffer);
-    }
-}
-
-void keyboard_reader() {
-    KBD_init();
-    while(1) {
-        printk("%c", getc());
-    }
-}
-
-void md5_file(char *path, superblock_t *superblock) {
-    file_t *file;
-    inode_t *inode;
-    inode = FS_inode_for_path(path, superblock->root_inode);
-    file = inode->open(inode);
-
-    MD5_CTX context;
-    unsigned char buffer[1024], digest[16];
-    int len;
-    printk("\nMD5 of %s:\n", path);
-
-    MD5Init(&context);
-    while ((len = file->read(file, (char *)buffer, 1024))) {
-        MD5Update(&context, buffer, len);
-    }
-    MD5Final(digest, &context);
-
-    file->close(&file);
-    MDPrint(digest);
-}
-
-void md5_test() {
-    char *message = "This is a shorter file for testing the filesystem\n";
-    MD5_CTX context;
-    unsigned char digest[16];
-    MD5Init(&context);
-    MD5Update(&context, message, strlen(message));
-    MD5Final(digest, &context);
-    MDPrint(digest);
-}
-
 void kmain_thread(void *arg) {
-    part_block_dev_t *partitions[4];
-    ATA_block_dev_t *drive;
-    superblock_t *superblock;
+    // part_block_dev_t *partitions[4];
+    // ATA_block_dev_t *drive;
+    // superblock_t *superblock;
 
     printb("\nExecuting in kthread\n");
 
-    drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
-    parse_MBR(drive, partitions);
-    // print_partition(partitions[0]);
+    KBD_init();
 
-    FS_register(VSPACE(FAT_detect));
-    superblock = FS_probe((block_dev_t *)partitions[0]);
+    // putc('a');
+    // putc('b');
+    // putc('c');
+    // putc('d');
+    putc(getc());
 
-    print_filesystem(superblock);
-    md5_file("/test/short.txt", superblock);
-    md5_file("/test/heart-of-darkness.txt", superblock);
-    md5_file("/test/war-and-peace.txt", superblock);
+    // setup_snakes(1);
+
+    // drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
+    // parse_MBR(drive, partitions);
+
+    // FS_register(VSPACE(FAT_detect));
+    // superblock = FS_probe((block_dev_t *)partitions[0]);
+
+    // print_filesystem(superblock);
+    // print_file_by_path("/test/heart-of-darkness.txt", superblock);
+    // printk("\nDone!\n");
 }

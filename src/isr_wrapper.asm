@@ -1,6 +1,7 @@
 extern irq_handler
 extern curr_proc
 extern next_proc
+extern sys_call_isr
 
 struc rf
     ._rax:  resq 1
@@ -50,44 +51,14 @@ isr_wrapper_%1:
     jmp isr_generic
 %endmacro
 
-section .data
-kt_off: equ 0xffff800000000000
-
-section .text
-bits 64
-
-global isr_generic
-isr_generic:
-    ; expects rdi and rsi already pushed;
-    ; rsi at top of stack
-
-    ; push rest of registers
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    ; place a pointer to the stack frame stack in 3rd arg
-    mov rdx, rsp
-    add rdx, 96
-
-    call irq_handler
-
-    ; check if next process equals current process
+%macro CONTEXT_SWITCH 0
+; check if next process equals current process
     mov rax, [curr_proc]
     mov rbx, [next_proc]
     cmp rax, rbx
     je .no_context_switch
 
-.context_save:
+.save:
     ; current process != next process, perform context switch
     ; save current context into current_process
     pop rdx
@@ -140,7 +111,7 @@ isr_generic:
     ; set current proc to next proc
     mov [curr_proc], rbx
 
-.context_load:
+.load:
     ; load the context from next_process
     ; overwrite isr stack
     mov rdx, [rbx + rf._rip]
@@ -174,11 +145,44 @@ isr_generic:
     mov gs, [rbx + rf._gs]
     mov rbx, [rbx + rf._rbx]
 
-.context_switch:
     ; ready to run next_proc on iretq
+.switch:
     iretq
 
 .no_context_switch:
+%endmacro
+
+section .text
+bits 64
+
+global isr_generic
+isr_generic:
+    ; expects rdi and rsi already pushed;
+    ; rsi at top of stack
+
+    ; push rest of registers
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    ; place a pointer to the stack frame stack in 3rd arg
+    mov rdx, rsp
+    add rdx, 112
+
+    call irq_handler
+    
+    CONTEXT_SWITCH
+
+    ; no context switch
     ; restore scratch registers
     pop r15
     pop r14
@@ -194,6 +198,45 @@ isr_generic:
     pop rax
     pop rsi
     pop rdi
+    iretq
+
+global isr_wrapper_206
+isr_wrapper_206:
+    push rdi
+    push rsi
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    call sys_call_isr
+    
+    CONTEXT_SWITCH
+
+    ; no context switch
+    ; restore scratch registers except for return val
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    pop rsi
+    add rsp, 8
     iretq
 
 ISR_WRAPPER 0
@@ -402,7 +445,7 @@ ISR_WRAPPER 202
 ISR_WRAPPER 203
 ISR_WRAPPER 204
 ISR_WRAPPER 205
-ISR_WRAPPER 206
+; ISR_WRAPPER 206
 ISR_WRAPPER 207
 ISR_WRAPPER 208
 ISR_WRAPPER 209

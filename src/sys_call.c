@@ -5,34 +5,23 @@
 #include <stddef.h>
 #include "gdt.h"
 #include "printk.h"
+#include "sys_call_ints.h"
+#include "printk.h"
 
 #define NUM_SYS_CALLS 256
 
 sys_call_f sys_calls[NUM_SYS_CALLS];
-uint8_t sys_call_index;
-
-void sys_call_isr(uint8_t, unsigned int, void *);
-
-void init_sys_calls() {
-    // Preallocate the sys call stack
-    virtual_addr_t stack_top = allocate_thread_stack();
-    virtual_addr_t stack_bottom = stack_top - (PAGE_SIZE * 2);
-    uint64_t *writeable_stack = (uint64_t *)stack_bottom;
-
-    // Write to the stack now to trigger a page fault
-    // So that it doesn't happen when a system call occurs
-    // Because that's weird
-    *writeable_stack = 0;
-
-    TSS_set_ist(stack_top, SYS_CALL_IST);
-    IRQ_set_handler(SYS_CALL_IRQ, sys_call_isr, NULL);
-}
 
 void set_sys_call(uint8_t num, sys_call_f sys_call) {
     sys_calls[num] = VSPACE(sys_call);
 }
 
-void sys_call_isr(uint8_t irq, unsigned int error_code, void *arg) {
-    // Set error code to the system call index??
-    sys_calls[sys_call_index]();
+void init_sys_calls() {
+    virtual_addr_t stack_top = allocate_thread_stack();
+    TSS_set_ist(stack_top, SYS_CALL_IST);
+    set_sys_call(PUTC_SYS_CALL, putc_sys_call);
+}
+
+uint64_t sys_call_isr(uint64_t sys_call_index, uint64_t arg) {
+    return sys_calls[sys_call_index](arg);
 }

@@ -1,7 +1,6 @@
 #include "printk.h"
 #include <stdarg.h>
 #include <stddef.h>
-#include <stdint-gcc.h>
 #include <stdbool.h>
 #include "vga.h"
 #include "string.h"
@@ -282,4 +281,11 @@ int printk(const char *fmt, ...) {
     res = print_backend(fmt, false, valist);
     va_end(valist);
     return res;
+}
+
+uint64_t putc_sys_call(uint64_t data) {
+    char c = (char)data;
+    VGA_display_char(c);
+    SER_write(&c, 1);
+    return 0;
 }

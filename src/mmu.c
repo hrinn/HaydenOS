@@ -295,10 +295,10 @@ void MMU_free_page(void *address) {
     if (entry->present == 1) {
         // Page was allocated on demand, must deallocate
         MMU_pf_free(pf);
+        entry->present = 0;
+    } else {
+        entry->allocated = 0;
     }
-
-    entry->present = 0;
-    entry->allocated = 0;
 
     // There is so much space available in the virtual memory
     // That we don't have to track freed pages
@@ -532,6 +532,7 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
         pf = MMU_pf_alloc();
         entry->base_addr = (pf >> PAGE_OFFSET);
         entry->present = 1;
+        entry->allocated = 0;
         return;
     }
 
@@ -619,8 +620,9 @@ void free_thread_stack(virtual_addr_t top) {
             pf = (physical_addr_t)(entry->base_addr << PAGE_OFFSET);
             MMU_pf_free(pf);
             entry->present = 0;
+        } else {
+            entry->allocated = 0;
         }
-        entry->allocated = 0;
     }
 
     // Add top to the list of free stacks

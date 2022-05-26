@@ -7,12 +7,13 @@
 #include "scheduler.h"
 #include "gdt.h"
 #include "printk.h"
+#include "sys_call_ints.h"
 
 #define IE_FLAG 0x200
 #define RES_FLAG 0x2
 
-void yield_sys_call();
-void kexit_sys_call();
+uint64_t yield_sys_call(uint64_t);
+uint64_t kexit_sys_call(uint64_t);
 
 static int pid = 1;
 static process_t orig_proc;
@@ -74,12 +75,16 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
 }
 
 // Invokes the scheduler and passes control to the next eligible thread
-void yield_sys_call() {
+uint64_t yield_sys_call(uint64_t arg) {
+    CLI;
     PROC_reschedule();
+    STI;
+    return 0;
 }
 
 // Exits and destroys the state of the caller thread
-void kexit_sys_call() {
+uint64_t kexit_sys_call(uint64_t arg) {
+    CLI;
     // Deallocate the stack
     free_thread_stack(curr_proc->stack_top);
 
@@ -91,6 +96,8 @@ void kexit_sys_call() {
 
     // Runs the scheduler to pick another process
     PROC_reschedule();
+    STI;
+    return 0;
 }
 
 // Blocking process management

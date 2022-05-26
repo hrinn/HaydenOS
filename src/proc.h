@@ -7,21 +7,7 @@
 #include "irq.h"
 #include "sys_call.h"
 
-#define YIELD_SYS_CALL 0
-#define KEXIT_SYS_CALL 1
-
 typedef void (*kproc_t)(void *);
-
-// Invokes the scheduler and passes control to the next eligible thread
-static inline void yield(void) {
-    sys_call_index = YIELD_SYS_CALL;
-    asm volatile ( "INT $206" );
-}
-
-static inline void kexit(void) {
-    sys_call_index = KEXIT_SYS_CALL;
-    asm volatile ( "INT $206" );
-}
 
 struct regfile {
     uint64_t rax;   uint64_t rbx;   uint64_t rcx;

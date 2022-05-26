@@ -186,7 +186,10 @@ void IRQ_init() {
     idt[DOUBLE_FAULT].ist = 1;
     idt[PAGE_FAULT].ist = 2;
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
+
+    // Setup sys calls
     idt[SYS_CALL_IRQ].ist = SYS_CALL_IST;
+    idt[SYS_CALL_IRQ].type = TRAP_GATE;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);

@@ -9,6 +9,8 @@
 #include "proc.h"
 #include "proc_queue.h"
 #include "circ_buff.h"
+#include "sys_call.h"
+#include "sys_call_ints.h"
 
 // I/O Port Addresses
 #define PS2_STATUS 0x64
@@ -139,6 +141,7 @@ static keyb_state_t keyb;
 #define TEST_BIT(I, k) (I & (1 << k))
 
 void keyboard_handler(uint8_t, uint32_t, void *);
+uint64_t getc_sys_call(uint64_t arg);
 
 uint8_t read_data() {
     while ((inb(PS2_STATUS) & 0x1) == 0); // Waiting for full output buffer
@@ -257,6 +260,9 @@ int KBD_init() {
     // Initialize circular buffer
     init_buff(&keyb.circ_buff);
 
+    // Initialize getc sys call
+    set_sys_call(GETC_SYS_CALL, getc_sys_call);
+
     // Initialize interrupts
     IRQ_set_handler(KEYBOARD_IRQ, keyboard_handler, NULL);
     IRQ_clear_mask(KEYBOARD_IRQ);
@@ -264,14 +270,12 @@ int KBD_init() {
     return 1;
 }
 
-// Blocking function
-char getc() {
+uint64_t getc_sys_call(uint64_t arg) {
     char chr;
     wait_event_interruptable(&keyb.blocked, is_buffer_empty(&keyb.circ_buff));
 
-    // Data in circular buffer
     consumer_read(&keyb.circ_buff, &chr);
-    return chr;
+    return (uint64_t)chr;
 }
 
 // static bool release = false;
