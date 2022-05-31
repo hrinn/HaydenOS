@@ -118,12 +118,9 @@ void kmain_thread(void *arg) {
     printb("\nExecuting in kthread\n");
 
     KBD_init();
-
-    // putc('a');
-    // putc('b');
-    // putc('c');
-    // putc('d');
     putc(getc());
+    // putc('t');
+    // putc('e');
 
     // setup_snakes(1);
 

@@ -222,7 +222,6 @@ isr_wrapper_206:
     CONTEXT_SWITCH
 
     ; no context switch
-    ; restore scratch registers except for return val
     pop r15
     pop r14
     pop r13
@@ -234,9 +233,9 @@ isr_wrapper_206:
     pop rdx
     pop rcx
     pop rbx
-    pop rax
+    add rsp, 8  ; don't restore return val (rax)
     pop rsi
-    add rsp, 8
+    pop rdi
     iretq
 
 ISR_WRAPPER 0
