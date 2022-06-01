@@ -53,60 +53,60 @@ isr_wrapper_%1:
 
 %macro CONTEXT_SWITCH 0
 ; check if next process equals current process
-    mov rax, [curr_proc]
+    mov rcx, [curr_proc]
     mov rbx, [next_proc]
-    cmp rax, rbx
+    cmp rcx, rbx
     je .no_context_switch
 
 .save:
     ; current process != next process, perform context switch
     ; save current context into current_process
     pop rdx
-    mov [rax + rf._r15], rdx
+    mov [rcx + rf._r15], rdx
     pop rdx
-    mov [rax + rf._r14], rdx
+    mov [rcx + rf._r14], rdx
     pop rdx
-    mov [rax + rf._r13], rdx
+    mov [rcx + rf._r13], rdx
     pop rdx
-    mov [rax + rf._r12], rdx
+    mov [rcx + rf._r12], rdx
     pop rdx
-    mov [rax + rf._r11], rdx
+    mov [rcx + rf._r11], rdx
     pop rdx
-    mov [rax + rf._r10], rdx
+    mov [rcx + rf._r10], rdx
     pop rdx
-    mov [rax + rf._r9], rdx
+    mov [rcx + rf._r9], rdx
     pop rdx
-    mov [rax + rf._r8], rdx
+    mov [rcx + rf._r8], rdx
     pop rdx
-    mov [rax + rf._rdx], rdx
+    mov [rcx + rf._rdx], rdx
     pop rdx
-    mov [rax + rf._rcx], rdx
+    mov [rcx + rf._rcx], rdx
     pop rdx
-    mov [rax + rf._rbx], rdx
+    mov [rcx + rf._rbx], rdx
     pop rdx
-    mov [rax + rf._rax], rdx
+    mov [rcx + rf._rax], rdx
     pop rdx
-    mov [rax + rf._rsi], rdx
+    mov [rcx + rf._rsi], rdx
     pop rdx
-    mov [rax + rf._rdi], rdx
+    mov [rcx + rf._rdi], rdx
 
     ; get data from isr stack
     mov rdx, [rsp]
-    mov [rax + rf._rip], rdx
+    mov [rcx + rf._rip], rdx
     mov dx, [rsp + 8]
-    mov [rax + rf._cs], dx
+    mov [rcx + rf._cs], dx
     mov rdx, [rsp + 16]
-    mov [rax + rf._rflags], rdx
+    mov [rcx + rf._rflags], rdx
     mov rdx, [rsp + 24]
-    mov [rax + rf._rsp], rdx
+    mov [rcx + rf._rsp], rdx
     mov dx, [rsp + 32]
-    mov [rax + rf._ss], dx
+    mov [rcx + rf._ss], dx
 
     ; segment registers
-    mov [rax + rf._ds], ds
-    mov [rax + rf._es], es
-    mov [rax + rf._fs], fs
-    mov [rax + rf._gs], gs
+    mov [rcx + rf._ds], ds
+    mov [rcx + rf._es], es
+    mov [rcx + rf._fs], fs
+    mov [rcx + rf._gs], gs
 
     ; set current proc to next proc
     mov [curr_proc], rbx

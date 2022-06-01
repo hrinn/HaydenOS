@@ -5,6 +5,7 @@
 #include "ioport.h"
 #include "gdt.h"
 #include "sys_call.h"
+#include "proc.h"
 
 // Interrupt configuration
 #define INTERRUPT_GATE 0xE
@@ -188,8 +189,10 @@ void IRQ_init() {
     idt[GENERAL_PROTECTION_FAULT].ist = 3;
 
     // Setup sys calls
-    idt[SYS_CALL_IRQ].ist = SYS_CALL_IST;
     idt[SYS_CALL_IRQ].type = TRAP_GATE;
+
+    // Setup KEXIT stack
+    idt[KEXIT_IRQ].ist = KEXIT_IST;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);

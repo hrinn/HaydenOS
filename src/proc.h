@@ -55,4 +55,7 @@ void PROC_init_queue(proc_queue_t *);
     STI;\
 }
 
+#define KEXIT_IST 4
+#define KEXIT_IRQ 207
+
 #endif

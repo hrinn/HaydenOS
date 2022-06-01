@@ -17,8 +17,6 @@ void set_sys_call(uint8_t num, sys_call_f sys_call) {
 }
 
 void init_sys_calls() {
-    virtual_addr_t stack_top = allocate_thread_stack();
-    TSS_set_ist(stack_top, SYS_CALL_IST);
     set_sys_call(PUTC_SYS_CALL, putc_sys_call);
 }
 

@@ -13,7 +13,7 @@
 #define RES_FLAG 0x2
 
 uint64_t yield_sys_call(uint64_t);
-uint64_t kexit_sys_call(uint64_t);
+void kexit_isr(uint8_t, uint32_t, void *);
 
 static int pid = 1;
 static process_t orig_proc;
@@ -22,8 +22,11 @@ process_t *next_proc;
 
 // Initializes the multitasking system
 void PROC_init(void) {
+    virtual_addr_t stack_top = allocate_thread_stack();
+
     set_sys_call(YIELD_SYS_CALL, yield_sys_call);
-    set_sys_call(KEXIT_SYS_CALL, kexit_sys_call);
+    IRQ_set_handler(KEXIT_IRQ, kexit_isr, NULL);
+    TSS_set_ist(stack_top, KEXIT_IST);
 }
 
 // Drives the multitasking system
@@ -83,8 +86,7 @@ uint64_t yield_sys_call(uint64_t arg) {
 }
 
 // Exits and destroys the state of the caller thread
-uint64_t kexit_sys_call(uint64_t arg) {
-    CLI;
+void kexit_isr(uint8_t irq, uint32_t error_code, void *arg) {
     // Deallocate the stack
     free_thread_stack(curr_proc->stack_top);
 
@@ -96,8 +98,6 @@ uint64_t kexit_sys_call(uint64_t arg) {
 
     // Runs the scheduler to pick another process
     PROC_reschedule();
-    STI;
-    return 0;
 }
 
 // Blocking process management

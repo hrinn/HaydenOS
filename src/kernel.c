@@ -118,7 +118,9 @@ void kmain_thread(void *arg) {
     printb("\nExecuting in kthread\n");
 
     KBD_init();
-    putc(getc());
+    while (1) {
+        putc(getc());
+    }
     // putc('t');
     // putc('e');
 

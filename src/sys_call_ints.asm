@@ -36,18 +36,19 @@ bits 64
     ret
 %endmacro
 
+global kexit
+kexit:
+    int 207
+    ret
+
 global yield
 yield:
     VOID_SYSCALL_VOID 0
 
-global kexit
-kexit:
-    VOID_SYSCALL_VOID 1
-
 global getc
 getc:
-    RET_SYSCALL_VOID 2
+    RET_SYSCALL_VOID 1
 
 global putc
 putc:
-    VOID_SYSCALL_ARG 3
+    VOID_SYSCALL_ARG 2
