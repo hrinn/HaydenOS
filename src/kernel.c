@@ -49,7 +49,6 @@ void kmain(struct multiboot_info *multiboot_tags) {
 }
 
 void kmain_vspace() {
-    // Apply DATA REL offsets
     apply_isr_offset(KERNEL_TEXT_START);
     cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
     SER_kspace_offset(KERNEL_TEXT_START);
@@ -64,49 +63,6 @@ void kmain_vspace() {
         STI;
         asm ("hlt");
     }
-}
-
-int readfs_cb(const char *ent_name, inode_t *inode, void *p) {
-    int n_tabs = *(int *)p, i, next_tabs = n_tabs + 1;
-    char tabs[(n_tabs * 4) + 1];
-
-    for (i = 0; i < (n_tabs * 4); i++) {
-        tabs[i] = ' ';
-    }
-    tabs[n_tabs * 4] = 0;
-
-    printb("%s/%s\n", tabs, ent_name);
-    if (inode->st_mode & S_IFDIR) {
-        inode->readdir(inode, VSPACE(readfs_cb), (void *)&next_tabs);
-    }
-
-    inode->free(&inode);
-
-    return 1;
-}
-
-void print_filesystem(superblock_t *superblock) {
-    int ntabs = 0;
-
-    printk("\nFilesystem entries:\n");
-    superblock->root_inode->readdir(superblock->root_inode, VSPACE(readfs_cb), (void *)&ntabs);
-}
-
-void print_file_by_path(char *path, superblock_t *superblock) {
-    file_t *file;
-    inode_t *inode;
-    inode = FS_inode_for_path(path, superblock->root_inode);
-    file = inode->open(inode);
-    char buffer[513];
-    int len;
-    buffer[512] = 0;
-
-    printk("\n%s:\n", path);
-
-    while ((len = file->read(file, buffer, 512))) {
-        printb("%s", buffer);
-    }
-    file->close(&file);
 }
 
 void kmain_thread(void *arg) {
@@ -124,10 +80,10 @@ void kmain_thread(void *arg) {
 
     KBD_init();
 
-    // print_file_by_path("/bin/test.bin", superblock);
     prog_start = ELF_mmap_binary(superblock->root_inode, "bin/test.bin");
     
     if (prog_start != 0) {
+        printk("\nExecuting user program (%p)\n", (void *)prog_start);
         PROC_create_kthread((kproc_t)prog_start, NULL);
     }
 }

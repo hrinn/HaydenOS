@@ -117,3 +117,46 @@ inode_t *FS_inode_for_path(char *path, inode_t *cwd) {
 
     return path_search.result;
 }
+
+int readfs_cb(const char *ent_name, inode_t *inode, void *p) {
+    int n_tabs = *(int *)p, i, next_tabs = n_tabs + 1;
+    char tabs[(n_tabs * 4) + 1];
+
+    for (i = 0; i < (n_tabs * 4); i++) {
+        tabs[i] = ' ';
+    }
+    tabs[n_tabs * 4] = 0;
+
+    printb("%s/%s\n", tabs, ent_name);
+    if (inode->st_mode & S_IFDIR) {
+        inode->readdir(inode, VSPACE(readfs_cb), (void *)&next_tabs);
+    }
+
+    inode->free(&inode);
+
+    return 1;
+}
+
+void FS_print(superblock_t *superblock) {
+    int ntabs = 0;
+
+    printk("\nFilesystem entries:\n");
+    superblock->root_inode->readdir(superblock->root_inode, VSPACE(readfs_cb), (void *)&ntabs);
+}
+
+void FS_print_file(char *path, superblock_t *superblock) {
+    file_t *file;
+    inode_t *inode;
+    inode = FS_inode_for_path(path, superblock->root_inode);
+    file = inode->open(inode);
+    char buffer[513];
+    int len;
+    buffer[512] = 0;
+
+    printk("\n%s:\n", path);
+
+    while ((len = file->read(file, buffer, 512))) {
+        printb("%s", buffer);
+    }
+    file->close(&file);
+}

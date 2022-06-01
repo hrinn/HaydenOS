@@ -52,6 +52,7 @@ virtual_addr_t ELF_mmap_binary(inode_t *root, char *path) {
     ELF64_header_t header;
     ELF64_prog_header_t prog_header;
     char *magic = "\177ELF";
+    off_t cursor;
     int i;
 
     inode = FS_inode_for_path(path, root);
@@ -71,10 +72,18 @@ virtual_addr_t ELF_mmap_binary(inode_t *root, char *path) {
     }
 
     // Read ELF program headers
-    file->lseek(file, header.prog_table_pos);
+    cursor = header.prog_table_pos;
     for (i = 0; i < header.prog_ent_num; i++) {
+        // Read program header
+        file->lseek(file, cursor + i * header.prog_ent_size);
         file->read(file, (char *)&prog_header, header.prog_ent_size);
+
+        // Allocate associated addresses in virtual space
         allocate_range(prog_header.load_addr, prog_header.mem_size);
+
+        // Read section into memory
+        file->lseek(file, prog_header.file_offset);
+        file->read(file, (char *)prog_header.load_addr, prog_header.file_size);
     }
 
     file->close(&file);
