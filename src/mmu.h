@@ -28,4 +28,6 @@ void parse_multiboot_tags(struct multiboot_info *);
 void setup_pml4(virtual_addr_t *);
 void cleanup_old_virtual_space();
 
+void allocate_range(virtual_addr_t start, uint64_t size);
+
 #endif

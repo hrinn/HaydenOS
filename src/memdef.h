@@ -6,6 +6,7 @@
 #pragma GCC diagnostic ignored "-Wpointer-arith"
 
 #define KERNEL_TEXT_START 0xffff800000000000
+#define USER_TEXT_START 0x8000000000
 #define VSPACE(func) (func + KERNEL_TEXT_START)
 
 typedef uint64_t virtual_addr_t;

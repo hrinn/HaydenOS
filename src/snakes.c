@@ -36,6 +36,7 @@
 // #include "asm.h"
 #include "proc.h"
 #include "sys_call_ints.h"
+#include "memdef.h"
 
 #define SN_LENGTH 10
 #define SN_BODY_CHAR '*'
@@ -472,7 +473,7 @@ void setup_snakes(int hungry)
 
    /* turn each snake loose as an individual LWP */            
    for(i=0; i<cnt; i++) {                                        
-      snake = PROC_create_kthread(hungry ? run_hungry_snake : run_snake, &s[i]);    
+      snake = PROC_create_kthread(hungry ? VSPACE(run_hungry_snake) : VSPACE(run_snake), &s[i]);    
       if (snake)
          s[i]->pid = snake->pid;
    }                                                           

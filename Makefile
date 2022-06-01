@@ -51,7 +51,13 @@ img: $(img)
 
 iso: $(iso)
 
-$(img): $(kernel) $(grub_cfg)
+build/test.o: test/test.c
+	@$(CC) $(CFLAGS) -c test/test.c -o build/test.o
+
+build/test.bin: build/test.o
+	@$(LD) -n -T test/linker.ld -o build/test.bin build/test.o build/sys_call_ints.o
+
+$(img): $(kernel) $(grub_cfg) build/test.bin
 	@tools/img.sh
 
 $(iso): $(kernel) $(grub_cfg)

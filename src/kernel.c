@@ -16,8 +16,7 @@
 #include "string.h"
 #include "kmalloc.h"
 #include "sys_call_ints.h"
-
-#define HALT_LOOP while(1) asm("hlt")
+#include "elf.h"
 
 void kmain_vspace(void);
 void kmain_thread(void *);
@@ -57,7 +56,7 @@ void kmain_vspace() {
 
     init_sys_calls();
     PROC_init();
-    PROC_create_kthread(kmain_thread, NULL);
+    PROC_create_kthread(VSPACE(kmain_thread), NULL);
 
     while (1) {
         CLI;
@@ -111,28 +110,24 @@ void print_file_by_path(char *path, superblock_t *superblock) {
 }
 
 void kmain_thread(void *arg) {
-    // part_block_dev_t *partitions[4];
-    // ATA_block_dev_t *drive;
-    // superblock_t *superblock;
+    part_block_dev_t *partitions[4];
+    ATA_block_dev_t *drive;
+    superblock_t *superblock;
+    virtual_addr_t prog_start;
 
     printb("\nExecuting in kthread\n");
 
+    drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
+    parse_MBR(drive, partitions);
+    FS_register(VSPACE(FAT_detect));
+    superblock = FS_probe((block_dev_t *)partitions[0]);
+
     KBD_init();
-    while (1) {
-        putc(getc());
+
+    // print_file_by_path("/bin/test.bin", superblock);
+    prog_start = ELF_mmap_binary(superblock->root_inode, "bin/test.bin");
+    
+    if (prog_start != 0) {
+        PROC_create_kthread((kproc_t)prog_start, NULL);
     }
-    // putc('t');
-    // putc('e');
-
-    // setup_snakes(1);
-
-    // drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
-    // parse_MBR(drive, partitions);
-
-    // FS_register(VSPACE(FAT_detect));
-    // superblock = FS_probe((block_dev_t *)partitions[0]);
-
-    // print_filesystem(superblock);
-    // print_file_by_path("/test/heart-of-darkness.txt", superblock);
-    // printk("\nDone!\n");
 }

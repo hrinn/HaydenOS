@@ -500,6 +500,11 @@ void map_range(page_table_t *pml4, physical_addr_t pstart, virtual_addr_t vstart
     }
 }
 
+// Demand allocates a virtual address range
+void allocate_range(virtual_addr_t start, uint64_t size) {
+    map_range(pml4, 0, start, size, PAGE_ALLOCATED | PAGE_WRITABLE);
+}
+
 // Returns the page frame associated with a virtual address if it is mapped in PML4
 pt_entry_t *get_page_frame(page_table_t *pml4, virtual_addr_t addr) {
     pt_index_t *i = (pt_index_t *)&addr;
