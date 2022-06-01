@@ -6,15 +6,13 @@ kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-loop0 := $(shell losetup -f)
-
-linker_script := src/linker.ld
+linker_script := src/kernel/linker.ld
 grub_cfg := build/img/boot/grub/grub.cfg
-assembly_source_files := $(wildcard src/*.asm)
-assembly_object_files += $(patsubst src/%.asm, \
+assembly_source_files := $(wildcard src/kernel/*.asm)
+assembly_object_files += $(patsubst src/kernel/%.asm, \
 	build/%.o, $(assembly_source_files))
-c_source_files := $(wildcard src/*.c)
-c_object_files += $(patsubst src/%.c, \
+c_source_files := $(wildcard src/kernel/*.c)
+c_object_files += $(patsubst src/kernel/%.c, \
 	build/%.o, $(c_source_files))
 
 .PHONY: all clean run iso img debug gdb run_img run_iso clean_img
@@ -51,11 +49,11 @@ img: $(img)
 
 iso: $(iso)
 
-build/test.o: test/test.c
-	@$(CC) $(CFLAGS) -c test/test.c -o build/test.o
+build/test.o: src/user/test.c
+	@$(CC) $(CFLAGS) -c src/user/test.c -o build/test.o
 
 build/test.bin: build/test.o
-	@$(LD) -n -T test/linker.ld -o build/test.bin build/test.o build/sys_call_ints.o
+	@$(LD) -n -T src/user/linker.ld -o build/test.bin build/test.o build/sys_call_ints.o
 
 $(img): $(kernel) $(grub_cfg) build/test.bin
 	@tools/img.sh
@@ -67,16 +65,16 @@ $(kernel): $(assembly_object_files) $(c_object_files) $(linker_script)
 	@mkdir -p build/img/boot
 	@$(LD) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
 
-$(grub_cfg): src/grub.cfg
+$(grub_cfg): src/kernel/grub.cfg
 	@mkdir -p build/img/boot/grub
-	@cp src/grub.cfg $(grub_cfg)
+	@cp src/kernel/grub.cfg $(grub_cfg)
 
 # compile assembly files
-build/%.o: src/%.asm
+build/%.o: src/kernel/%.asm
 	@mkdir -p $(shell dirname $@)
 	@nasm -felf64 $< -o $@
 
 # compile c files
-build/%.o: src/%.c src/*.h
+build/%.o: src/kernel/%.c src/kernel/*.h
 	@mkdir -p $(shell dirname $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
