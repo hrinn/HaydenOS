@@ -1,4 +1,4 @@
-#include "../kernel/sys_call_ints.h"
+#include "sys_call_ints.h"
 
 void main(void *arg) {
     while (1) {

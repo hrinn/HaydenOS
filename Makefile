@@ -1,12 +1,14 @@
 LD := x86_64-elf-ld
 CC := x86_64-elf-gcc
-CFLAGS := -ffreestanding -Wall -Werror -pedantic -mno-red-zone -fPIC -fomit-frame-pointer
+CFLAGS := -ffreestanding -Wall -Werror -pedantic -mno-red-zone -fPIC -fomit-frame-pointer -Isrc/lib
 
 kernel := build/img/boot/kernel.bin
 img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
-linker_script := src/kernel/linker.ld
+kernel_linker := src/kernel/linker.ld
+user_linker := src/user/linked.ld
+
 grub_cfg := build/img/boot/grub/grub.cfg
 assembly_source_files := $(wildcard src/kernel/*.asm)
 assembly_object_files += $(patsubst src/kernel/%.asm, \
@@ -53,7 +55,7 @@ build/test.o: src/user/test.c
 	@$(CC) $(CFLAGS) -c src/user/test.c -o build/test.o
 
 build/test.bin: build/test.o
-	@$(LD) -n -T src/user/linker.ld -o build/test.bin build/test.o build/sys_call_ints.o
+	@$(LD) -n -T $(user_linker) -o build/test.bin build/test.o build/sys_call_ints.o
 
 $(img): $(kernel) $(grub_cfg) build/test.bin
 	@tools/img.sh
@@ -61,9 +63,9 @@ $(img): $(kernel) $(grub_cfg) build/test.bin
 $(iso): $(kernel) $(grub_cfg)
 	@grub-mkrescue -o $(iso) build/img 2> /dev/null
 
-$(kernel): $(assembly_object_files) $(c_object_files) $(linker_script)
+$(kernel): $(assembly_object_files) $(c_object_files) $(kernel_linker)
 	@mkdir -p build/img/boot
-	@$(LD) -n -T $(linker_script) -o $(kernel) $(assembly_object_files) $(c_object_files) 
+	@$(LD) -n -T $(kernel_linker) -o $(kernel) $(assembly_object_files) $(c_object_files) 
 
 $(grub_cfg): src/kernel/grub.cfg
 	@mkdir -p build/img/boot/grub
