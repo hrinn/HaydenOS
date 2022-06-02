@@ -71,7 +71,7 @@ void launch_user_process(inode_t *root, char *binary_path) {
 
     if (prog_start != 0) {
         printk("\nExecuting user program (%p)\n", (void *)prog_start);
-        PROC_create_uthread((uproc_t)prog_start, 1, (void **)&binary_path);
+        PROC_create_uthread((uproc_t)prog_start);
     }
 }
 

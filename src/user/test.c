@@ -1,6 +1,6 @@
 #include "sys_call_ints.h"
 
-void main(int argc, void **argv) {
+void main() {
     while (1) {
         putc(getc());
     }
