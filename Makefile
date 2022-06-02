@@ -51,13 +51,13 @@ img: $(img)
 
 iso: $(iso)
 
-build/test.o: src/user/test.c
-	@$(CC) $(CFLAGS) -c src/user/test.c -o build/test.o
+build/init.o: src/user/init.c
+	@$(CC) $(CFLAGS) -c src/user/init.c -o build/init.o
 
-build/test.bin: build/test.o
-	@$(LD) -n -T $(user_linker) -o build/test.bin build/test.o build/sys_call_ints.o
+build/init.bin: build/init.o
+	@$(LD) -n -T $(user_linker) -o build/init.bin build/init.o build/sys_call_ints.o
 
-$(img): $(kernel) $(grub_cfg) build/test.bin
+$(img): $(kernel) $(grub_cfg) build/init.bin
 	@tools/img.sh
 
 $(iso): $(kernel) $(grub_cfg)

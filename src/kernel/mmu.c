@@ -456,12 +456,16 @@ void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys
     if (!pml4->table[i->pml4_index].present) {
         pml4->table[i->pml4_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
         pml4->table[i->pml4_index].present = 1;
+        if (flags & PAGE_WRITABLE) pml4->table[i->pml4_index].writable = 1;
+        if (flags & PAGE_USER_ACCESS) pml4->table[i->pml4_index].user = 1;
     }
     pdp = entry_to_table(pml4, i->pml4_index);
 
     if (!pdp->table[i->pdp_index].present) {
         pdp->table[i->pdp_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
         pdp->table[i->pdp_index].present = 1;
+        if (flags & PAGE_WRITABLE) pdp->table[i->pdp_index].writable = 1;
+        if (flags & PAGE_USER_ACCESS) pdp->table[i->pdp_index].user = 1;
     }
     pd = entry_to_table(pdp, i->pdp_index);
 
@@ -469,6 +473,8 @@ void map_page(page_table_t *pml4, virtual_addr_t virt_addr, physical_addr_t phys
     if (!pd->table[i->pd_index].present) {
         pd->table[i->pd_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
         pd->table[i->pd_index].present = 1;
+        if (flags & PAGE_WRITABLE) pd->table[i->pd_index].writable = 1;
+        if (flags & PAGE_USER_ACCESS) pd->table[i->pd_index].user = 1;
     }
     pt = entry_to_table(pd, i->pd_index);
 
@@ -527,7 +533,6 @@ void set_page_noexec(page_table_t *pml4, virtual_addr_t addr) {
 void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
     virtual_addr_t page = get_cr2();
     physical_addr_t pf;
-    char *action;
     pt_entry_t *entry;
 
     entry = get_page_frame(pml4, page);
@@ -541,9 +546,13 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
         return;
     }
 
-    action = (error_code & 0x2) ? "write" : "read";
-    if (error_code & 0x10) action = "instruction read";
-    printk("PAGE FAULT: Invalid %s at %p\n", action, (void *)page);
+    printk("PAGE FAULT: Invalid memory access at %p\n", (void *)page);
+    printk("- %s\n", (error_code & 0x1) ? "Page protection violation" : "Not-present page");
+    printk("- %s\n", (error_code & 0x2) ? "Write" : "Read");
+    printk("- %s\n", (error_code & 0x4) ? "User mode" : "Kernel mode");
+    if (error_code & 0x08) printk("- Read reserved field in page table entry\n");
+    if (error_code & 0x10) printk("- Instruction fetch\n");
+
     while (1) asm("hlt");
 }
 

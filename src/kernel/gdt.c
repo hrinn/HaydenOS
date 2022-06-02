@@ -62,11 +62,33 @@ typedef struct {
 } __attribute__((packed)) code_descriptor_t;
 
 typedef struct {
+    uint16_t segment_limit_15_0;
+    uint16_t base_addr_15_0;
+    uint8_t base_addr_23_16;
+    
+    uint8_t a : 1;
+    uint8_t w : 1;
+    uint8_t e : 1;
+    uint8_t zero : 1;
+    uint8_t one : 1;
+    uint8_t dpl : 2;
+    uint8_t p : 1;
+
+    uint8_t segment_limit_19_16 : 4;
+    uint8_t avl : 1;
+    uint8_t 👺 : 1;
+    uint8_t db : 1;
+    uint8_t g : 1;
+
+    uint8_t base_addr_31_24;
+} __attribute__((packed)) data_descriptor_t;
+
+typedef struct {
     uint64_t null_descriptor;
     code_descriptor_t kernel_code_descriptor;
-    uint64_t kernel_data_descriptor;    // Currently unused
+    data_descriptor_t kernel_data_descriptor;    // Currently unused
     code_descriptor_t user_code_descriptor;
-    uint64_t user_data_descriptor;
+    data_descriptor_t user_data_descriptor;
     tss_descriptor_t tss_descriptor;
 } __attribute__((packed)) gdt_t;
 
@@ -81,11 +103,20 @@ void GDT_remap() {
     memcpy(&gdt, &gdt64, 16);
 
     // Setup user descriptors
+    // Code descriptor
     gdt.user_code_descriptor.one1 = 1;
     gdt.user_code_descriptor.one2 = 1;
     gdt.user_code_descriptor.dpl = USER_DPL;
     gdt.user_code_descriptor.present = 1;
     gdt.user_code_descriptor.l = 1;
+
+    // Stack descriptor
+    gdt.user_data_descriptor.one = 1;
+    gdt.user_data_descriptor.segment_limit_15_0 = 0xFFFF;
+    gdt.user_data_descriptor.segment_limit_19_16 = 0xF;
+    gdt.user_data_descriptor.dpl = USER_DPL;
+    gdt.user_data_descriptor.p = 1;
+    gdt.user_data_descriptor.w = 1;
 
     // Load new GDT into GDT_R
     lgdt(&gdt, GDT_LIMIT);
@@ -130,4 +161,8 @@ void TSS_remap(virtual_addr_t *stack_tops, int n) {
 
 void TSS_set_ist(virtual_addr_t stack_top, int ist) {
     tss.ist[ist - 1] = stack_top;
+}
+
+void TSS_set_rsp(virtual_addr_t stack_top, int rsp) {
+    tss.rsp[rsp] = stack_top;
 }

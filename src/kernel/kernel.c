@@ -20,6 +20,7 @@
 
 void kmain_vspace(void);
 void kmain_thread(void *);
+extern void call_user(uint64_t user_text, uint64_t user_stack);
 
 void kmain(struct multiboot_info *multiboot_tags) {
     virtual_addr_t stack_addresses[4];
@@ -65,14 +66,25 @@ void kmain_vspace() {
     }
 }
 
-void launch_user_process(inode_t *root, char *binary_path) {
+void setup_userspace(inode_t *root, char *binary_path) {
     virtual_addr_t prog_start;
     prog_start = ELF_mmap_binary(root, binary_path);
 
-    if (prog_start != 0) {
-        printk("\nExecuting user program (%p)\n", (void *)prog_start);
-        PROC_create_uthread((uproc_t)prog_start);
-    }
+    if (prog_start == 0) return;
+
+    // Setup userspace stack
+    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
+
+    // Setup user -> kernel stack
+    TSS_set_rsp(allocate_thread_stack(), 0);
+
+    // Cause demand paging to happen before!!
+    virtual_addr_t stack_top = USER_STACK_START + PAGE_SIZE * 10;
+    uint8_t *p1 = (uint8_t *)(stack_top - PAGE_SIZE);
+    *p1 = 0;
+
+    printk("Jumping to user space... (%p)\n", (void *)prog_start);
+    call_user(prog_start, USER_STACK_START + PAGE_SIZE * 10);
 }
 
 void kmain_thread(void *arg) {
@@ -89,6 +101,5 @@ void kmain_thread(void *arg) {
 
     KBD_init();
 
-    // Launch user process
-    launch_user_process(superblock->root_inode, "/bin/test.bin");
+    setup_userspace(superblock->root_inode, "/bin/init.bin");
 }

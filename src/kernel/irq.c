@@ -190,9 +190,11 @@ void IRQ_init() {
 
     // Setup sys calls
     idt[SYS_CALL_IRQ].type = TRAP_GATE;
+    idt[SYS_CALL_IRQ].dpl = USER_DPL;
 
     // Setup KEXIT stack
     idt[KEXIT_IRQ].ist = KEXIT_IST;
+    idt[SYS_CALL_IRQ].dpl = USER_DPL;
 
     // Load IDT register
     lidt(&idt[0], (sizeof(idt_entry_t) * NUM_IDT_ENTRIES) - 1);

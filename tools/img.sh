@@ -19,7 +19,7 @@ sudo grub-install --target=i386-pc --root-directory=$mnt --no-floppy \
     --modules="normal part_msdos ext2 multiboot" $loop0
 sudo cp -r build/img/* $mnt
 sudo mkdir $mnt/bin
-sudo cp build/test.bin $mnt/bin/test.bin
+sudo cp build/init.bin $mnt/bin/init.bin
 sudo umount $mnt
 sudo rmdir $mnt
 sudo losetup -d $loop0

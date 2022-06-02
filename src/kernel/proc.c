@@ -77,27 +77,6 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     return context;
 }
 
-process_t *PROC_create_uthread(uproc_t entry_point) {
-    process_t *context = (process_t *)kcalloc(1, sizeof(process_t));
-
-    // Allocate user thread
-    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
-    context->stack_top = USER_STACK_START + (PAGE_SIZE * 10);
-
-    // Set the registers that are currently known
-    context->pid = pid++;
-    context->regfile.rbp = context->stack_top;
-    context->regfile.rsp = context->stack_top;
-    context->regfile.rip = (uint64_t)entry_point;
-    context->regfile.cs = USER_CODE_SELECTOR | USER_DPL;
-    context->regfile.ss = 0;
-    context->regfile.rflags |= (IE_FLAG | RES_FLAG);
-
-    // Add this context to the scheduler
-    sched_admit(context);
-    return context;
-}
-
 // Invokes the scheduler and passes control to the next eligible thread
 uint64_t yield_sys_call(uint64_t arg) {
     CLI;
