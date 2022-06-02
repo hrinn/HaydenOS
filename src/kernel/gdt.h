@@ -10,9 +10,8 @@ void TSS_set_ist(virtual_addr_t stack_top, int ist);
 void TSS_set_rsp(virtual_addr_t stack_top, int rsp);
 
 #define KERNEL_CODE_SELECTOR 0x8
-#define USER_CODE_SELECTOR 0x18
-
 #define KERNEL_DATA_SELECTOR 0x10
+#define USER_CODE_SELECTOR 0x18
 #define USER_DATA_SELECTOR 0x20
 
 #define KERNEL_DPL 0

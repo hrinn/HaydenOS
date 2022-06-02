@@ -36,7 +36,7 @@ typedef struct {
     uint64_t ist[7];
     uint64_t res3;
     uint16_t res4;
-    uint16_t io_map_base_addr;
+    // uint16_t io_map_base_addr; // All bits are assumed to be '1'
 } __attribute__((packed)) tss_t;
 
 typedef struct {

@@ -26,7 +26,7 @@ call_user:
     sub rsp, 32
     mov qword [rsp], rdi  ; RIP
     mov qword [rsp + 8], 0x18 | 0x3   ; User Code Selector | User DPL
-    mov qword [rsp + 16], 0x202       ; RFLAGS
+    mov qword [rsp + 16], 0x202      ; RFLAGS (IOPL = 3, IE = 1)
     mov qword [rsp + 24], rsi         ; RSP
     mov qword [rsp + 32], 0x20 | 0x3  ; User Stack Selector | User DPL
 
