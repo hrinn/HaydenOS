@@ -68,7 +68,28 @@ struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     context->regfile.rip = (uint64_t)VSPACE(kthread_wrapper);
     context->regfile.rdi = (uint64_t)entry_point;
     context->regfile.rsi = (uint64_t)arg;
-    context->regfile.cs = KERNEL_CODE_OFFSET;
+    context->regfile.cs = KERNEL_CODE_SELECTOR;
+    context->regfile.ss = 0;
+    context->regfile.rflags |= (IE_FLAG | RES_FLAG);
+
+    // Add this context to the scheduler
+    sched_admit(context);
+    return context;
+}
+
+process_t *PROC_create_uthread(uproc_t entry_point, int argc, void **argv) {
+    process_t *context = (process_t *)kcalloc(1, sizeof(process_t));
+
+    context->stack_top = allocate_thread_stack(); // allocate user thread stack
+
+    // Set the registers that are currently known
+    context->pid = pid++;
+    context->regfile.rbp = context->stack_top;
+    context->regfile.rsp = context->stack_top;
+    context->regfile.rip = (uint64_t)entry_point;
+    context->regfile.rdi = argc;
+    context->regfile.rsi = (uint64_t)argv;
+    context->regfile.cs = USER_CODE_SELECTOR | USER_DPL;
     context->regfile.ss = 0;
     context->regfile.rflags |= (IE_FLAG | RES_FLAG);
 

@@ -8,6 +8,7 @@
 #include "sys_call.h"
 
 typedef void (*kproc_t)(void *);
+typedef void (*uproc_t)(int, void **);
 
 struct regfile {
     uint64_t rax;   uint64_t rbx;   uint64_t rcx;
@@ -39,6 +40,7 @@ extern process_t *next_proc;
 void PROC_init(void);
 void PROC_run(void);
 process_t *PROC_create_kthread(kproc_t entry_point, void *arg);
+process_t *PROC_create_uthread(uproc_t entry_point, int argc, void **argv);
 
 // Blocking process management
 void PROC_block_on(proc_queue_t *, int enable_ints);

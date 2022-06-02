@@ -7,7 +7,7 @@ img := build/HaydenOS.img
 iso := build/HaydenOS.iso
 
 kernel_linker := src/kernel/linker.ld
-user_linker := src/user/linked.ld
+user_linker := src/user/linker.ld
 
 grub_cfg := build/img/boot/grub/grub.cfg
 assembly_source_files := $(wildcard src/kernel/*.asm)

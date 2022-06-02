@@ -4,7 +4,7 @@
 #include "registers.h"
 
 #define GDT_LIMIT 55
-#define TSS_OFFSET 0x28
+#define TSS_SELECTOR 0x28
 #define TSS_TYPE 0x9
 
 extern uint64_t gdt64;
@@ -64,7 +64,7 @@ typedef struct {
 typedef struct {
     uint64_t null_descriptor;
     code_descriptor_t kernel_code_descriptor;
-    uint64_t kernel_data_descriptor;
+    uint64_t kernel_data_descriptor;    // Currently unused
     code_descriptor_t user_code_descriptor;
     uint64_t user_data_descriptor;
     tss_descriptor_t tss_descriptor;
@@ -79,6 +79,13 @@ extern uint8_t ist_stack3_top;
 void GDT_remap() {
     // Copy GDT 64 defined in boot.asm to new gdt
     memcpy(&gdt, &gdt64, 16);
+
+    // Setup user descriptors
+    gdt.user_code_descriptor.one1 = 1;
+    gdt.user_code_descriptor.one2 = 1;
+    gdt.user_code_descriptor.dpl = USER_DPL;
+    gdt.user_code_descriptor.present = 1;
+    gdt.user_code_descriptor.l = 1;
 
     // Load new GDT into GDT_R
     lgdt(&gdt, GDT_LIMIT);
@@ -111,7 +118,7 @@ void TSS_init() {
     gdt.tss_descriptor.res2 = 0;
 
     // Load the offset of the TSS descriptor in the GDT
-    ltr(TSS_OFFSET);
+    ltr(TSS_SELECTOR);
 }
 
 void TSS_remap(virtual_addr_t *stack_tops, int n) {

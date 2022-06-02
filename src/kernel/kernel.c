@@ -65,11 +65,20 @@ void kmain_vspace() {
     }
 }
 
+void launch_user_process(inode_t *root, char *binary_path) {
+    virtual_addr_t prog_start;
+    prog_start = ELF_mmap_binary(root, binary_path);
+
+    if (prog_start != 0) {
+        printk("\nExecuting user program (%p)\n", (void *)prog_start);
+        PROC_create_uthread((uproc_t)prog_start, 1, (void **)&binary_path);
+    }
+}
+
 void kmain_thread(void *arg) {
     part_block_dev_t *partitions[4];
     ATA_block_dev_t *drive;
     superblock_t *superblock;
-    virtual_addr_t prog_start;
 
     printb("\nExecuting in kthread\n");
 
@@ -80,10 +89,6 @@ void kmain_thread(void *arg) {
 
     KBD_init();
 
-    prog_start = ELF_mmap_binary(superblock->root_inode, "bin/test.bin");
-    
-    if (prog_start != 0) {
-        printk("\nExecuting user program (%p)\n", (void *)prog_start);
-        PROC_create_kthread((kproc_t)prog_start, NULL);
-    }
+    // Launch user process
+    launch_user_process(superblock->root_inode, "/bin/test.bin");
 }

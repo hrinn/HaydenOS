@@ -114,7 +114,7 @@ void set_idt_entry(uint8_t irq) {
     entry->isr_mid = (wrapper_addr >> 16) & 0xFFFF;
     entry->isr_high = (wrapper_addr >> 32) & 0xFFFFFFFF;
 
-    entry->target_selector = KERNEL_CODE_OFFSET;
+    entry->target_selector = KERNEL_CODE_SELECTOR;
     entry->ist = 0;
     entry->res1 = 0;
     entry->type = INTERRUPT_GATE;
