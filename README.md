@@ -8,7 +8,7 @@ A kernel for x64. This is a project for Dr. John Bellardo's Implementing OS clas
 - Virtual Memory
 - Threads / Scheduling
 - Virtual Filesystem
-- User mode
+- User Mode
 
 ## Device Support
 - VGA Text Mode

@@ -36,7 +36,7 @@ typedef struct {
     uint64_t ist[7];
     uint64_t res3;
     uint16_t res4;
-    // uint16_t io_map_base_addr; // All bits are assumed to be '1'
+    uint16_t io_map_base_addr;
 } __attribute__((packed)) tss_t;
 
 typedef struct {
@@ -130,6 +130,9 @@ void TSS_init() {
     tss.ist[0] = (uint64_t)&ist_stack1_top;
     tss.ist[1] = (uint64_t)&ist_stack2_top;
     tss.ist[2] = (uint64_t)&ist_stack3_top;
+
+    // Set IO bitmap
+    tss.io_map_base_addr = 0xFFFF;
 
     // Initialize TSS descriptor
     gdt.tss_descriptor.limit_15_0 = tss_limit & 0xFFFF;
