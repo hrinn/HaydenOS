@@ -78,11 +78,6 @@ void setup_userspace(inode_t *root, char *binary_path) {
     // Setup user -> kernel stack
     TSS_set_rsp(allocate_thread_stack(), 0);
 
-    // Cause demand paging to happen before!!
-    virtual_addr_t stack_top = USER_STACK_START + PAGE_SIZE * 10;
-    uint8_t *p1 = (uint8_t *)(stack_top - PAGE_SIZE);
-    *p1 = 0;
-
     printk("Jumping to user space... (%p)\n", (void *)prog_start);
     call_user(prog_start, USER_STACK_START + PAGE_SIZE * 10);
 }
