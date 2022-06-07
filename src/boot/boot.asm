@@ -14,14 +14,14 @@ section .text
 bits 32
 start:
     cli
-    mov esp, stack_top
+    mov esp, boot_stack_top
 
     ; save multiboot information structure address
     mov edi, ebx
 
     call check_multiboot
     call check_cpuid
-    call check_long_mode
+    call check_long_mode ; doesn't work on baremetal
 
     call setup_page_tables
     call enable_paging    
@@ -135,11 +135,6 @@ enable_paging:
 
     ret
 
-; Stack
-global p4_table, p3_table, p2_table, stack_bottom
-global ist_stack1_bottom, ist_stack1_top, ist_stack2_bottom
-global ist_stack2_top, ist_stack3_bottom, ist_stack3_top
-
 section .bss
 align 4096
 p4_table:
@@ -148,19 +143,6 @@ p3_table:
     resb 4096
 p2_table:
     resb 4096
-
-stack_bottom:
-    resb 4096 * 2
-stack_top:
-
-ist_stack1_bottom:
-    resb 4096 * 2
-ist_stack1_top:
-
-ist_stack2_bottom:
-    resb 4096 * 2
-ist_stack2_top:
-
-ist_stack3_bottom:
-    resb 4096 * 2
-ist_stack3_top:
+boot_stack_bottom:
+    resb 512
+boot_stack_top:

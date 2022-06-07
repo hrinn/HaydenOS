@@ -162,10 +162,7 @@ static inline void write_command(uint8_t command) {
 int init_ps2_controller() {
     uint8_t config;
 
-    DEBUG_PRINT("Initializing PS/2 Controller\n");
-
     // Disable ports
-    DEBUG_PRINT("Disabling ports\n");
     write_command(CMD_DISABLE_P1);
     write_command(CMD_DISABLE_P2);
 
@@ -173,7 +170,6 @@ int init_ps2_controller() {
     inb(PS2_DATA);
 
     // Configure controller
-    DEBUG_PRINT("Configuring controller\n");
     write_command(CMD_READ_CONFIG_BYTE);
     config = inb(PS2_DATA);
     config |= (CFG_CLK1 | CFG_INT1); // Enable first clock and interrupt
@@ -182,17 +178,14 @@ int init_ps2_controller() {
     write_data(config);
 
     // Self test
-    DEBUG_PRINT("Testing controller\n");
     write_command(CMD_TEST_PS2);
     if (read_data() != PS2_TEST_PASS) return -1;
 
     // Test port one
-    DEBUG_PRINT("Testing port 1\n");
     write_command(CMD_TEST_P1);
     if (read_data() != 0) return -2;
 
     // Enable port one
-    DEBUG_PRINT("Enabling port 1\n");
     write_command(CMD_ENABLE_P1);
 
     return 1;
@@ -215,17 +208,14 @@ uint8_t write_keyboard(uint8_t byte) {
 int init_ps2_keyboard() {
     uint8_t resp;
 
-    DEBUG_PRINT("Initializing keyboard\n");
     
     // Reset keyboard
-    DEBUG_PRINT("Resetting keyboard and starting self test\n");
     if (write_keyboard(CMD_RST_KEYBOARD) != KEYB_ACK) {
         printk("init_ps2_keyboard(): Failed reset and self test\n");
         return -3;
     }
 
     // Set scan code set
-    DEBUG_PRINT("Setting keyboard to scan code set 2\n");
     if ((resp = write_keyboard(CMD_SET_SCANCODE)) == KEYB_CONT) {
         if ((resp = write_keyboard(SUBCMD_SCANCODE_SET_2)) != KEYB_ACK) {
             printk("init_ps2_keyboard(): Failed to set scan code to set 2, received 0x%x\n", resp);
@@ -237,7 +227,6 @@ int init_ps2_keyboard() {
     }
 
     // Enable keyboard scanning
-    DEBUG_PRINT("Enabling keyboard scanning\n");
     if (write_keyboard(CMD_ENABLE_SCAN) != KEYB_ACK)  {
         printk("init_ps2_keyboard(): Failed to enable scanning\n");
         return -6;

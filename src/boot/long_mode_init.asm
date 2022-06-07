@@ -1,5 +1,5 @@
 global long_mode_start
-extern kmain
+extern loader
 
 section .text
 bits 64
@@ -19,4 +19,4 @@ long_mode_start:
     ; mov the tag structure pointer into edi
     ; mov edi, ebx
 
-    call kmain
+    call loader

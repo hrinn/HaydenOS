@@ -3,7 +3,7 @@
 
 #include "memdef.h"
 
-void GDT_remap(void);
+void GDT_remap(unsigned char *);
 void TSS_init(void);
 void TSS_remap(virtual_addr_t *stack_tops, int n);
 void TSS_set_ist(virtual_addr_t stack_top, int ist);

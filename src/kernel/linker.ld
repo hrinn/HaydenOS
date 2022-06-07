@@ -1,13 +1,11 @@
-ENTRY(start)
+ENTRY(kmain)
 OUTPUT_FORMAT(elf64-x86-64)
 
 SECTIONS {
-    . = 1M;
+    . = 0xffff800000000000;
 
     .rodata :
     {
-        /* ensure that the multiboot header is at the beginning */
-        KEEP(*(.multiboot_header))
         *(.rodata .rodata.*)
         . = ALIGN(4K);
     }

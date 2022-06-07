@@ -16,7 +16,7 @@ sudo mkdosfs -F32 -f 2 $loop1
 sudo mkdir $mnt
 sudo mount $loop1 $mnt
 sudo grub-install --target=i386-pc --root-directory=$mnt --no-floppy \
-    --modules="normal part_msdos ext2 multiboot" $loop0
+    --modules="normal part_msdos multiboot" $loop0
 sudo cp -r build/img/* $mnt
 sudo mkdir $mnt/bin
 sudo cp build/init.bin $mnt/bin/init.bin

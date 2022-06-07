@@ -27,7 +27,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     GDB_PAUSE; // set gdbp=1
     
     // Remap GDT and initialize TSS
-    GDT_remap();
+    GDT_remap(NULL); // pass in
     TSS_init();
 
     // Enable interrupts and serial driver
@@ -35,6 +35,8 @@ void kmain(struct multiboot_info *multiboot_tags) {
     SER_init();
 
     VGA_clear();
+    printk("\n🦀 Welcome to HaydenOS 🦀\n");
+
     printk("\nExecuting in kmain\n");
 
     // Initialize memory management
@@ -68,7 +70,7 @@ void kmain_vspace() {
 
 void setup_userspace(inode_t *root, char *binary_path) {
     virtual_addr_t prog_start;
-    prog_start = ELF_mmap_binary(root, binary_path);
+    prog_start = ELF_mmap_file(root, binary_path);
 
     if (prog_start == 0) return;
 
@@ -83,13 +85,19 @@ void setup_userspace(inode_t *root, char *binary_path) {
 }
 
 void kmain_thread(void *arg) {
-    part_block_dev_t *partitions[4];
     ATA_block_dev_t *drive;
+    part_block_dev_t *partitions[4];
     superblock_t *superblock;
 
     printb("\nExecuting in kthread\n");
 
     drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
+
+    if (drive == NULL) {
+        printk("Unable to identify ATA drive on primary master\n");
+        return;
+    }
+
     parse_MBR(drive, partitions);
     FS_register(VSPACE(FAT_detect));
     superblock = FS_probe((block_dev_t *)partitions[0]);

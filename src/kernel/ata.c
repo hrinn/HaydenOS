@@ -42,7 +42,7 @@ typedef struct ATA_sync {
     proc_queue_t blocked;
 } ATA_sync_t;
 
-static ATA_sync_t ATA_primary_sync;
+static ATA_sync_t ATA_primary_sync, ATA_secondary_sync;
 
 // Inserts ATA request at end of device's request queue
 void append_ATA_request(ATA_sync_t *sync, ATA_request_t *request) {
@@ -121,7 +121,7 @@ int count_ATA_queue(ATA_sync_t *sync) {
 }
 
 void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
-    ATA_sync_t *sync = (irq == PRIMARY_IRQ) ? &ATA_primary_sync : NULL;
+    ATA_sync_t *sync = (irq == PRIMARY_IRQ) ? &ATA_primary_sync : &ATA_secondary_sync;
     ATA_request_t *request;
     ATA_block_dev_t *ata_dev;
     uint16_t *dst;
@@ -179,12 +179,7 @@ void ATA_process_read_request(ATA_sync_t *sync) {
 
 int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
     ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
-    ATA_sync_t *sync = (ata_dev->ata_base == PRIMARY_BASE) ? &ATA_primary_sync : NULL;
-
-    if (sync == NULL) {
-        printk("ATA_read_block(): Unsupported read from secondary controller\n");
-        return -1;
-    }
+    ATA_sync_t *sync = (ata_dev->ata_base == PRIMARY_BASE) ? &ATA_primary_sync : &ATA_secondary_sync;
 
     if (blk_num >= dev->tot_len) {
         printk("ATA_read_block(): Tried to read past end of drive\n");

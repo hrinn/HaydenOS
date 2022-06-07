@@ -94,13 +94,13 @@ typedef struct {
 
 static tss_t tss;
 static gdt_t gdt;
-extern uint8_t ist_stack1_top;
-extern uint8_t ist_stack2_top;
-extern uint8_t ist_stack3_top;
+extern uint8_t ist1_top;
+extern uint8_t ist2_top;
+extern uint8_t ist3_top;
 
-void GDT_remap() {
+void GDT_remap(uint8_t *gdt64) {
     // Copy GDT 64 defined in boot.asm to new gdt
-    memcpy(&gdt, &gdt64, 16);
+    memcpy(&gdt, gdt64, 16);
 
     // Setup user descriptors
     // Code descriptor
@@ -127,9 +127,9 @@ void TSS_init() {
     uint64_t tss_addr = (uint64_t)&tss;
 
     // Initialize TSS
-    tss.ist[0] = (uint64_t)&ist_stack1_top;
-    tss.ist[1] = (uint64_t)&ist_stack2_top;
-    tss.ist[2] = (uint64_t)&ist_stack3_top;
+    tss.ist[0] = (uint64_t)&ist1_top;
+    tss.ist[1] = (uint64_t)&ist2_top;
+    tss.ist[2] = (uint64_t)&ist3_top;
 
     // Set IO bitmap
     tss.io_map_base_addr = 0xFFFF;

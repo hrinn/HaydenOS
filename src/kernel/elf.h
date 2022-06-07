@@ -4,6 +4,6 @@
 #include "memdef.h"
 #include "vfs.h"
 
-virtual_addr_t ELF_mmap_binary(inode_t *root, char *path);
+virtual_addr_t ELF_mmap_file(inode_t *root, char *path);
 
 #endif

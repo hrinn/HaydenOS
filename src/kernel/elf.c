@@ -46,7 +46,7 @@ typedef struct ELF64_prog_header {
     uint64_t alignment;
 } ELF64_prog_header_t;
 
-virtual_addr_t ELF_mmap_binary(inode_t *root, char *path) {
+virtual_addr_t ELF_mmap_file(inode_t *root, char *path) {
     file_t *file;
     inode_t *inode;
     ELF64_header_t header;

@@ -150,13 +150,13 @@ pt_entry_t *get_page_frame(page_table_t *pml4, virtual_addr_t addr);
 
 // External labels and functions
 extern void enable_no_execute(void);
-extern uint8_t p4_table;
-extern uint8_t p3_table;
-extern uint8_t p2_table;
+// extern uint8_t p4_table;
+// extern uint8_t p3_table;
+// extern uint8_t p2_table;
 extern uint8_t stack_bottom;
-extern uint8_t ist_stack1_bottom;
-extern uint8_t ist_stack2_bottom;
-extern uint8_t ist_stack3_bottom;
+extern uint8_t ist1_bottom;
+extern uint8_t ist2_bottom;
+extern uint8_t ist3_bottom;
 
 // Static variables
 static memory_map_t mmap;
@@ -679,9 +679,9 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
 
     // Map main stack and IST stacks
     stack_addresses[0] = map_stack(pml4, KERNEL_STACKS_START, (physical_addr_t)&stack_bottom);
-    stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
-    stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
-    stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
+    stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist1_bottom);
+    stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist2_bottom);
+    stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist3_bottom);
     thread_stack_brk = stack_addresses[3];
 
     printk("Loading new PML4...\n");
@@ -693,9 +693,9 @@ void cleanup_old_virtual_space() {
     virtual_addr_t current;
 
     // Free page tables
-    MMU_pf_free((physical_addr_t)&p4_table);
-    MMU_pf_free((physical_addr_t)&p3_table);
-    MMU_pf_free((physical_addr_t)&p2_table);
+    // MMU_pf_free((physical_addr_t)&p4_table);
+    // MMU_pf_free((physical_addr_t)&p3_table);
+    // MMU_pf_free((physical_addr_t)&p2_table);
 
     // Remap identity region to no execute
     while (region != NULL) {

@@ -40,8 +40,6 @@ static void allocate_blocks(kmalloc_pool_t *pool) {
     int i;
     free_list_t *free_node;
 
-    DEBUG_PRINT("Allocating %d blocks for %dB pool\n", PAGE_SIZE / pool->block_size, pool->block_size);
-
     // Allocate a page
     uint8_t *page = MMU_alloc_page();
 
@@ -68,7 +66,6 @@ static free_list_t *pop_free_block(kmalloc_pool_t *pool) {
     free_list_t *block = pool->head;
     pool->head = pool->head->next;
     pool->avail--;
-    DEBUG_PRINT("Retrieving block at %p from %dB pool\n", (void *)block, pool->block_size);
     return block;
 }
 
@@ -99,7 +96,6 @@ void *kmalloc(size_t size) {
     header = (block_header_t *)MMU_alloc_pages(num_pages(full_size));
     header->pool = NULL;
     header->size = full_size;
-    DEBUG_PRINT("%ld too large, allocating %d pages starting at %p\n", full_size, num_pages(full_size), (void *)header);
     return (void *)(header + 1);
 }
 
@@ -115,7 +111,6 @@ static void push_free_block(kmalloc_pool_t *pool, free_list_t *node) {
     node->next = pool->head;
     pool->head = node;
     pool->avail++;
-    DEBUG_PRINT("Adding block at %p to %dB pool\n", (void *)node, pool->block_size);
 }
 
 // Frees memory allocated on the kernel heap
@@ -132,7 +127,6 @@ void kfree(void *addr) {
         push_free_block(header->pool, (free_list_t *)header);
     } else {
         // Deallocate pages
-        DEBUG_PRINT("Deallocating pages of len %ldB starting at %p\n", header->size, (void *)header);
         MMU_free_pages((void *)header, num_pages(header->size));
     }
 }
