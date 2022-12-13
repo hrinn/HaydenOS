@@ -151,8 +151,7 @@ pt_entry_t *get_page_frame(page_table_t *pml4, virtual_addr_t addr);
 // External labels and functions
 extern void enable_no_execute(void);
 extern uint8_t p4_table;
-extern uint8_t p3_table;
-extern uint8_t p2_table;
+// extern uint8_t p3_table;
 extern uint8_t stack_bottom;
 extern uint8_t ist_stack1_bottom;
 extern uint8_t ist_stack2_bottom;
@@ -694,8 +693,7 @@ void cleanup_old_virtual_space() {
 
     // Free page tables
     MMU_pf_free((physical_addr_t)&p4_table);
-    MMU_pf_free((physical_addr_t)&p3_table);
-    MMU_pf_free((physical_addr_t)&p2_table);
+    // MMU_pf_free((physical_addr_t)&p3_table);
 
     // Remap identity region to no execute
     while (region != NULL) {
