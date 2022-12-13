@@ -1,6 +1,6 @@
 export CC := x86_64-elf-gcc
 export LD := x86_64-elf-ld
-export CFLAGS := -ffreestanding -Wall -Werror -pedantic -I../lib
+CFLAGS := -ffreestanding -Wall -Werror -pedantic -I../lib
 
 build_dir := bin
 img := bin/HaydenOS.img
@@ -12,17 +12,19 @@ grub_cfg := bin/img/boot/grub/grub.cfg
 
 all: $(img)
 
-gdb: export CFLAGS += -DGDB -g
+gdb: CFLAGS += -DGDB -g
 gdb: $(img)
 
-release: export CFLAGS += -Os
+release: CFLAGS += -Os
 release: $(img)
 
+export CFLAGS
+
 $(img): $(build_dir) $(grub_cfg) $(kernel) $(init)
-	tools/img.sh
+	@tools/img.sh
 
 clean:
-	rm -r bin
+	@rm -r bin
 
 run: $(img)
 	qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
@@ -34,8 +36,8 @@ $(init):
 	$(MAKE) -C src/user
 
 $(build_dir):
-	mkdir -p bin
+	@mkdir -p bin
 
 $(grub_cfg): src/kernel/grub.cfg
-	mkdir -p bin/img/boot/grub
-	cp src/kernel/grub.cfg $(grub_cfg)
+	@mkdir -p bin/img/boot/grub
+	@cp src/kernel/grub.cfg $(grub_cfg)
