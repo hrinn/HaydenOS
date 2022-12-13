@@ -1,82 +1,41 @@
-LD := x86_64-elf-ld
-CC := x86_64-elf-gcc
-CFLAGS := -ffreestanding -Wall -Werror -pedantic -mno-red-zone -fPIC -fomit-frame-pointer -Isrc/lib
+export CC := x86_64-elf-gcc
+export LD := x86_64-elf-ld
+export CFLAGS := -ffreestanding -Wall -Werror -pedantic -I../lib
 
-kernel := build/img/boot/kernel.bin
-img := build/HaydenOS.img
-iso := build/HaydenOS.iso
+build_dir := bin
+img := bin/HaydenOS.img
+kernel := bin/img/boot/kernel.bin
+init := bin/init.bin
+grub_cfg := bin/img/boot/grub/grub.cfg
 
-kernel_linker := src/kernel/linker.ld
-user_linker := src/user/linker.ld
+.PHONY: all clean run gdb release
 
-grub_cfg := build/img/boot/grub/grub.cfg
-assembly_source_files := $(wildcard src/kernel/*.asm)
-assembly_object_files += $(patsubst src/kernel/%.asm, \
-	build/%.o, $(assembly_source_files))
-c_source_files := $(wildcard src/kernel/*.c)
-c_object_files += $(patsubst src/kernel/%.c, \
-	build/%.o, $(c_source_files))
+all: $(img)
 
-.PHONY: all clean run iso img debug gdb run_img run_iso clean_img
+gdb: export CFLAGS += -DGDB -g
+gdb: $(img)
 
-all: $(kernel)
+release: export CFLAGS += -Os
+release: $(img)
+
+$(img): $(build_dir) $(grub_cfg) $(kernel) $(init)
+	tools/img.sh
 
 clean:
-	@rm -r build
+	rm -r bin
 
-clean_img:
-	@sudo umount /mnt/fatgrub
-	@sudo losetup -d $(loop0)
-	@sudo losetup -d $(loop1)
-	@sudo rmdir /mnt/fatgrub
+run: $(img)
+	qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
 
-debug: CFLAGS+=-DDEBUG
-debug: run
+$(kernel):
+	$(MAKE) -C src/kernel
 
-gdb: CFLAGS+=-DGDB -g
-gdb: run
+$(init):
+	$(MAKE) -C src/user
 
-release: CFLAGS+=-Os
-release: $(kernel)
-
-run: run_img
-
-run_img: $(img)
-	@qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
-
-run_iso: $(iso)
-	@qemu-system-x86_64 -s -cdrom $(iso) -serial stdio #-soundhw pcspk
-
-img: $(img)
-
-iso: $(iso)
-
-build/init.o: src/user/init.c
-	@$(CC) $(CFLAGS) -c src/user/init.c -o build/init.o
-
-build/init.bin: build/init.o
-	@$(LD) -n -T $(user_linker) -o build/init.bin build/init.o build/sys_call_ints.o
-
-$(img): $(kernel) $(grub_cfg) build/init.bin
-	@tools/img.sh
-
-$(iso): $(kernel) $(grub_cfg)
-	@grub-mkrescue -o $(iso) build/img 2> /dev/null
-
-$(kernel): $(assembly_object_files) $(c_object_files) $(kernel_linker)
-	@mkdir -p build/img/boot
-	@$(LD) -n -T $(kernel_linker) -o $(kernel) $(assembly_object_files) $(c_object_files) 
+$(build_dir):
+	mkdir -p bin
 
 $(grub_cfg): src/kernel/grub.cfg
-	@mkdir -p build/img/boot/grub
-	@cp src/kernel/grub.cfg $(grub_cfg)
-
-# compile assembly files
-build/%.o: src/kernel/%.asm
-	@mkdir -p $(shell dirname $@)
-	@nasm -felf64 $< -o $@
-
-# compile c files
-build/%.o: src/kernel/%.c src/kernel/*.h
-	@mkdir -p $(shell dirname $@)
-	@$(CC) $(CFLAGS) -c $< -o $@
+	mkdir -p bin/img/boot/grub
+	cp src/kernel/grub.cfg $(grub_cfg)
