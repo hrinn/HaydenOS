@@ -29,14 +29,17 @@ long_mode_start:
 setup_higher_half_map:
     ; Map last 2GB to first 2GB
     mov rax, 0x83       ; 0GB, present + writeable + huge
-    mov [(p3_table + 4080) - KERNEL_VBASE], rax
+    mov rbx, (p3_table + 510 * 8) - KERNEL_VBASE
+    mov [rbx], rax
 
     mov rax, 0x40000083 ; 1GB, present + writeable + huge
-    mov [(p3_table + 4088) - KERNEL_VBASE], rax
+    mov rbx, (p3_table + 511 * 8) - KERNEL_VBASE
+    mov [rbx], rax
 
     mov rax, (p3_table - KERNEL_VBASE)  ; map last P4 entry to last P3 table
     or rax, 0b11
-    mov [(p4_table + 4088) - KERNEL_VBASE], rax
+    mov rbx, (p4_table + 511 * 8) - KERNEL_VBASE
+    mov [rbx], rax
 
     ret
 
