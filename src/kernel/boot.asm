@@ -1,10 +1,7 @@
-global start, gdt64
+global start, gdt64, p3_table, p4_table
 extern long_mode_start
-default rel
 
-KERNEL_VBASE equ 0xFFFFFFFF80000000
-
-section .rodata
+section .multiboot.gdt64    align=4
 gdt64:
     dq 0    ; null descriptor
 .kernel_code: equ $ - gdt64
@@ -13,29 +10,44 @@ gdt64:
     dw $ - gdt64 - 1
     dq gdt64
 
+section .multiboot.bss  nobits  write   align=4
+align 0x1000
+p4_table:
+    resb 4096
+p3_table:
+    resb 4096
+mb_stack_bottom:
+    resb 512
+mb_stack_top:
 
-section .text
+section .multiboot.text exec    align=16
 bits 32
 start:
+    ; disable interrupts
     cli
-    mov esp, (stack_top - KERNEL_VBASE)
+
+    ; print 'OK' to screen
+    mov dword [0xb8000], 0x2f4b2f4f
+
+    ; setup boot stack
+    mov esp, mb_stack_top
 
     ; save multiboot information structure address
     mov edi, ebx
 
+    ; perform checks
     call check_multiboot
     call check_cpuid
     call check_long_mode
 
+    ; setup paging
     call setup_page_tables
     call enable_paging    
 
     ; load the 64-bit GDT
-    lgdt [gdt64.pointer - KERNEL_VBASE]
-    jmp gdt64.kernel_code:long_mode_start - KERNEL_VBASE
-
-    ; print 'OK' to screen
-    mov dword [0xb8000], 0x2f4b2f4f
+    lgdt [gdt64.pointer]
+    jmp gdt64.kernel_code:long_mode_start
+    
     hlt
 
 ; Prints 'ERR: ' and the given error code to screen and hangs.
@@ -96,23 +108,22 @@ check_long_mode:
     jmp error
 
 setup_page_tables:
-    mov eax, (p3_table - KERNEL_VBASE) ; map first P4 entry to first P3 table
+    mov eax, p3_table       ; map first P4 entry to first P3 table
     or eax, 0b11            ; present + writable
-    mov [p4_table - KERNEL_VBASE], eax
+    mov [p4_table], eax
 
-    ; Identity map first 2GB and map last 2GB to first 2GB
+    ; Identity map first 2GB
     ; Using 1GB huge pages in P3 table
-    mov eax, 0b10000011 ; present + writeable + huge
-    mov [p3_table - KERNEL_VBASE], eax
+    mov eax, 0b10000011 ; 0GB, present + writeable + huge
+    mov [p3_table], eax
 
-    mov eax, 0x40000000
-    or eax, 0b10000011
-    mov [p3_table - KERNEL_VBASE], eax
+    mov eax, 0x40000083 ; 1GB, present + writeable + huge
+    mov [p3_table + 8], eax
 
     ret
 
 enable_paging:
-    mov eax, (p4_table - KERNEL_VBASE) ; load physical address of P4 to cr3 register
+    mov eax, p4_table       ; load physical address of P4 to cr3 register
     mov cr3, eax
     
     mov eax, cr4            ; enable PAE-flag in cr4 (Physical Address Extension)
@@ -129,31 +140,3 @@ enable_paging:
     mov cr0, eax
 
     ret
-
-; Stack
-global p4_table, p3_table, stack_bottom
-global ist_stack1_bottom, ist_stack1_top, ist_stack2_bottom
-global ist_stack2_top, ist_stack3_bottom, ist_stack3_top
-
-section .bss
-align 0x1000
-p4_table:
-    resb 4096
-p3_table:
-    resb 4096
-
-stack_bottom:
-    resb 4096 * 2
-stack_top:
-
-ist_stack1_bottom:
-    resb 4096 * 2
-ist_stack1_top:
-
-ist_stack2_bottom:
-    resb 4096 * 2
-ist_stack2_top:
-
-ist_stack3_bottom:
-    resb 4096 * 2
-ist_stack3_top:
