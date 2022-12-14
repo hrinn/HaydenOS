@@ -1,5 +1,7 @@
-global start, gdt64, p3_table, p4_table
-extern long_mode_start
+global start, gdt64
+extern long_mode_start, p4_table
+
+KERNEL_VBASE equ 0xFFFFFFFF80000000
 
 section .multiboot.gdt64    align=4
 gdt64:
@@ -12,9 +14,7 @@ gdt64:
 
 section .multiboot.bss  nobits  write   align=4
 align 0x1000
-p4_table:
-    resb 4096
-p3_table:
+p3_table_temp:
     resb 4096
 mb_stack_bottom:
     resb 512
@@ -108,22 +108,22 @@ check_long_mode:
     jmp error
 
 setup_page_tables:
-    mov eax, p3_table       ; map first P4 entry to first P3 table
+    mov eax, p3_table_temp  ; map first P4 entry to first P3 table
     or eax, 0b11            ; present + writable
-    mov [p4_table], eax
+    mov [p4_table - KERNEL_VBASE], eax
 
     ; Identity map first 2GB
     ; Using 1GB huge pages in P3 table
-    mov eax, 0b10000011 ; 0GB, present + writeable + huge
-    mov [p3_table], eax
+    mov eax, 0x83       ; 0GB, present + writeable + huge
+    mov [p3_table_temp], eax
 
     mov eax, 0x40000083 ; 1GB, present + writeable + huge
-    mov [p3_table + 8], eax
+    mov [p3_table_temp + 8], eax
 
     ret
 
 enable_paging:
-    mov eax, p4_table       ; load physical address of P4 to cr3 register
+    mov eax, (p4_table - KERNEL_VBASE) ; load physical address of P4 to cr3 register
     mov cr3, eax
     
     mov eax, cr4            ; enable PAE-flag in cr4 (Physical Address Extension)
