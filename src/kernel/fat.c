@@ -214,11 +214,11 @@ file_t *FAT_file_open(inode_t *inode) {
     file->inode = inode;
     file->first_cluster = inode->st_ino;
     file->cursor = 0;
-    file->close = VSPACE(FAT_file_close);
-    file->read = VSPACE(FAT_file_read);
+    file->close = FAT_file_close;
+    file->read = FAT_file_read;
     file->write = NULL;
-    file->lseek = VSPACE(FAT_file_lseek);
-    file->mmap = VSPACE(FAT_file_mmap);
+    file->lseek = FAT_file_lseek;
+    file->mmap = FAT_file_mmap;
 
     return file;
 }
@@ -231,9 +231,9 @@ FAT_inode_t *FAT_init_inode(superblock_t *sb, unsigned long cluster_num) {
     inode->inode.parent_superblock = sb;
 
     // Set inode methods
-    inode->inode.readdir = VSPACE(FAT_readdir);
-    inode->inode.free = VSPACE(FAT_inode_free);
-    inode->inode.open = VSPACE(FAT_file_open);
+    inode->inode.readdir = FAT_readdir;
+    inode->inode.free = FAT_inode_free;
+    inode->inode.open = FAT_file_open;
     inode->inode.unlink = NULL;
 
     return inode;
@@ -352,7 +352,7 @@ superblock_t *FAT_detect(block_dev_t *dev) {
     superblock->superblock.type = "FAT32";
     superblock->superblock.name = superblock->fat32.label;
     superblock->superblock.dev = dev;
-    superblock->superblock.read_inode = VSPACE(FAT_read_inode);
+    superblock->superblock.read_inode = FAT_read_inode;
 
     // Setup root inode
     superblock->superblock.root_inode = (inode_t *)FAT_init_inode((superblock_t *)superblock, superblock->fat32.root_cluster_number);

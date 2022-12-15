@@ -25,11 +25,6 @@ static buff_state_t state;
 static hw_status_t status;
 static proc_queue_t blocked;
 
-void SER_kspace_offset(uint64_t offset) {
-    state.write_head += offset;
-    state.read_head += offset;
-}
-
 // Writes a byte to the UART
 void TX_byte(char data) {
     outb(COM1, data);

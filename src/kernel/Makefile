@@ -1,4 +1,4 @@
-CFLAGS += -mno-red-zone -fomit-frame-pointer -fpic -fno-pie -mcmodel=kernel
+CFLAGS += -mno-red-zone -fpic -fno-pie -mcmodel=kernel
 
 build_dir := ../../bin
 linker := linker.ld

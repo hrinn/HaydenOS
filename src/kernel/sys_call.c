@@ -13,7 +13,7 @@
 sys_call_f sys_calls[NUM_SYS_CALLS];
 
 void set_sys_call(uint8_t num, sys_call_f sys_call) {
-    sys_calls[num] = VSPACE(sys_call);
+    sys_calls[num] = sys_call;
 }
 
 void init_sys_calls() {

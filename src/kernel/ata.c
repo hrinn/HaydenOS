@@ -303,7 +303,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     ata_dev->ata_base = base;
     ata_dev->slave = slave;
     ata_dev->dev.tot_len = sectors;
-    ata_dev->dev.read_block = VSPACE(ATA_read_block);
+    ata_dev->dev.read_block = ATA_read_block;
     ata_dev->dev.blk_size = 512;
     ata_dev->dev.type = MASS_STORAGE;
     ata_dev->dev.name = name;

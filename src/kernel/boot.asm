@@ -1,5 +1,5 @@
-global start, gdt64
-extern long_mode_start, p4_table
+global start, gdt64, p4_table, p3_table_upper, p3_table_lower
+extern long_mode_start
 
 KERNEL_VBASE equ 0xFFFFFFFF80000000
 
@@ -13,12 +13,18 @@ gdt64:
     dq gdt64
 
 section .multiboot.bss  nobits  write   align=4
-align 0x1000
-p3_table_temp:
-    resb 4096
 mb_stack_bottom:
-    resb 512
+    resb 64
 mb_stack_top:
+
+section .bss
+align 0x1000
+p4_table:
+    resb 4096
+p3_table_lower:
+    resb 4096
+p3_table_upper:
+    resb 4096
 
 section .multiboot.text exec    align=16
 bits 32
@@ -108,17 +114,25 @@ check_long_mode:
     jmp error
 
 setup_page_tables:
-    mov eax, p3_table_temp  ; map first P4 entry to first P3 table
-    or eax, 0b11            ; present + writable
+    ; Setup P4 table
+    mov eax, (p3_table_lower - KERNEL_VBASE)    ; map first P4 entry to lower P3 table
+    or eax, 0b11                                ; present + writable
     mov [p4_table - KERNEL_VBASE], eax
 
+    mov eax, (p3_table_upper - KERNEL_VBASE)    ; map last P4 entry to upper P4 table
+    or eax, 0b11
+    mov [(p4_table + 511 * 8) - KERNEL_VBASE], eax
+
     ; Identity map first 2GB
+    ; And map last 2GB to first 2GB
     ; Using 1GB huge pages in P3 table
     mov eax, 0x83       ; 0GB, present + writeable + huge
-    mov [p3_table_temp], eax
+    mov [p3_table_lower - KERNEL_VBASE], eax
+    mov [(p3_table_upper + 510 * 8) - KERNEL_VBASE], eax
 
     mov eax, 0x40000083 ; 1GB, present + writeable + huge
-    mov [p3_table_temp + 8], eax
+    mov [p3_table_lower + 8 - KERNEL_VBASE], eax
+    mov [(p3_table_upper + 511 * 8) - KERNEL_VBASE], eax
 
     ret
 

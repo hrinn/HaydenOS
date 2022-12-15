@@ -23,6 +23,4 @@ void IRQ_end_of_interrupt(uint8_t irq);
 // Assembly helpers
 extern uint16_t check_int(void);
 
-void apply_isr_offset(uint64_t offset);
-
 #endif

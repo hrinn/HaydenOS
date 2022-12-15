@@ -74,7 +74,7 @@ int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
         dev->lba_offset = part->lba_addr;
         dev->num_sectors = part->num_sectors;
         dev->ata.dev.type = PARTITION;
-        dev->ata.dev.read_block = VSPACE(part_read_block);
+        dev->ata.dev.read_block = part_read_block;
 
         // Set partition name
         len = strlen(drive->dev.name);

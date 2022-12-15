@@ -124,31 +124,6 @@ void set_idt_entry(uint8_t irq) {
     entry->res2 = 0;
 }
 
-void apply_isr_offset(uint64_t offset) {
-    int i;
-    uint64_t addr;
-    idt_entry_t *entry;
-
-    for (i = 0; i < NUM_IDT_ENTRIES; i++) {
-        // Adjust IDT entry
-        addr = (uint64_t)isr_wrapper_table[i];
-        addr += offset;
-        entry = &idt[i];
-
-        entry->isr_low = addr & 0xFFFF;
-        entry->isr_mid = (addr >> 16) & 0xFFFF;
-        entry->isr_high = (addr >> 32) & 0xFFFFFFFF;
-
-        // Adjust irq handler table entries
-        if (irq_handler_table[i].handler) {
-            irq_handler_table[i].handler += offset;
-        }
-    }
-
-    // Set the text offset so that all future install handlers will be correct
-    kernel_text_offset = offset;
-}
-
 void PIC_remap() {
     uint8_t mask1 = inb(PIC1_DATA);
     uint8_t mask2 = inb(PIC2_DATA);

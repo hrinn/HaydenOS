@@ -42,21 +42,19 @@ void kmain(struct multiboot_info *multiboot_tags) {
     setup_pml4(stack_addresses);
 
     // Remap TSS stack addresses
-    TSS_remap(stack_addresses + 1, 3);
+    // TSS_remap(stack_addresses + 1, 3);
 
     // Switch execution to kernel space
-    asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    VSPACE(kmain_vspace)();
+    // asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
+    kmain_vspace();
 }
 
 void kmain_vspace() {
-    apply_isr_offset(KERNEL_TEXT_START);
-    cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
-    SER_kspace_offset(KERNEL_TEXT_START);
+    cleanup_old_virtual_space();
 
     init_sys_calls();
     PROC_init();
-    PROC_create_kthread(VSPACE(kmain_thread), NULL);
+    PROC_create_kthread(kmain_thread, NULL);
 
     while (1) {
         CLI;
@@ -91,7 +89,7 @@ void kmain_thread(void *arg) {
 
     drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
     parse_MBR(drive, partitions);
-    FS_register(VSPACE(FAT_detect));
+    FS_register(FAT_detect);
     superblock = FS_probe((block_dev_t *)partitions[0]);
 
     KBD_init();
