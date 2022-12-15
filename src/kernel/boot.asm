@@ -1,8 +1,6 @@
 global start, gdt64, p4_table, p3_table_upper, p3_table_lower
 extern long_mode_start
 
-KERNEL_VBASE equ 0xFFFFFFFF80000000
-
 section .multiboot.gdt64    align=4
 gdt64:
     dq 0    ; null descriptor
@@ -13,11 +11,6 @@ gdt64:
     dq gdt64
 
 section .multiboot.bss  nobits  write   align=4
-mb_stack_bottom:
-    resb 64
-mb_stack_top:
-
-section .bss
 align 0x1000
 p4_table:
     resb 4096
@@ -25,6 +18,9 @@ p3_table_lower:
     resb 4096
 p3_table_upper:
     resb 4096
+mb_stack_bottom:
+    resb 64
+mb_stack_top:
 
 section .multiboot.text exec    align=16
 bits 32
@@ -115,29 +111,29 @@ check_long_mode:
 
 setup_page_tables:
     ; Setup P4 table
-    mov eax, (p3_table_lower - KERNEL_VBASE)    ; map first P4 entry to lower P3 table
+    mov eax, p3_table_lower    ; map first P4 entry to lower P3 table
     or eax, 0b11                                ; present + writable
-    mov [p4_table - KERNEL_VBASE], eax
+    mov [p4_table], eax
 
-    mov eax, (p3_table_upper - KERNEL_VBASE)    ; map last P4 entry to upper P4 table
+    mov eax, p3_table_upper    ; map last P4 entry to upper P4 table
     or eax, 0b11
-    mov [(p4_table + 511 * 8) - KERNEL_VBASE], eax
+    mov [p4_table + 511 * 8], eax
 
     ; Identity map first 2GB
     ; And map last 2GB to first 2GB
     ; Using 1GB huge pages in P3 table
     mov eax, 0x83       ; 0GB, present + writeable + huge
-    mov [p3_table_lower - KERNEL_VBASE], eax
-    mov [(p3_table_upper + 510 * 8) - KERNEL_VBASE], eax
+    mov [p3_table_lower], eax
+    mov [p3_table_upper + 510 * 8], eax
 
     mov eax, 0x40000083 ; 1GB, present + writeable + huge
-    mov [p3_table_lower + 8 - KERNEL_VBASE], eax
-    mov [(p3_table_upper + 511 * 8) - KERNEL_VBASE], eax
+    mov [p3_table_lower + 8], eax
+    mov [p3_table_upper + 511 * 8], eax
 
     ret
 
 enable_paging:
-    mov eax, (p4_table - KERNEL_VBASE) ; load physical address of P4 to cr3 register
+    mov eax, p4_table       ; load physical address of P4 to cr3 register
     mov cr3, eax
     
     mov eax, cr4            ; enable PAE-flag in cr4 (Physical Address Extension)

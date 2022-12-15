@@ -376,7 +376,7 @@ void print_free_mem_regions() {
 
     while (current) {
         printk("Free memory start: 0x%lx, end: 0x%lx, len: %ld pages\n", 
-            current->start, current->end, (current->end - current->start)/4096);
+            current->start, current->end, (current->end - current->start) / PAGE_SIZE);
         current = current->next;
     }
 }
@@ -577,10 +577,11 @@ void remap_elf_sections(page_table_t *pml4) {
             if (!(current->flags & ELF_EXEC_FLAG)) flags |= PAGE_NO_EXECUTE;
 
             map_range(pml4, current->segment_address - KERNEL_TEXT_START, current->segment_address, current->segment_size, flags);
-            printk("Mapped %s (R%c%c)\n", 
+            printk("Mapped %s (R%c%c) at 0x%lx\n", 
                 get_elf_section_name(current->section_name_index), 
                 (current->flags & ELF_WRITE_FLAG) ? 'W' : '_',
-                (current->flags & ELF_EXEC_FLAG) ? 'X' : '_'
+                (current->flags & ELF_EXEC_FLAG) ? 'X' : '_',
+                current->segment_address
             );
         }
     }
@@ -690,17 +691,30 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
     // stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
     // stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
     // stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
-    thread_stack_brk = stack_addresses[3];
+    // thread_stack_brk = stack_addresses[3];
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);
 }
 
-void cleanup_old_virtual_space() {
-    // Free unused page tables
-    MMU_pf_free((physical_addr_t)&p4_table);
-    MMU_pf_free((physical_addr_t)&p3_table_upper);
-    MMU_pf_free((physical_addr_t)&p3_table_lower);
+void free_multiboot_sections() {
+    struct elf_section_header *current;
+    physical_addr_t current_page;
 
-    // TODO: Free multiboot section
+    for (current = (struct elf_section_header *)(mmap.elf_tag + 1);
+        (uint8_t *)current < (uint8_t *)mmap.elf_tag + mmap.elf_tag->size;
+        current++)
+    {
+        if (current->segment_size != 0 && current->segment_address < KERNEL_TEXT_START) {
+            printk("Freeing multiboot section: 0x%lx - 0x%lx\n", 
+                current->segment_address, 
+                current->segment_address + current->segment_size);
+            for (current_page = current->segment_address; 
+                current_page < current->segment_address + current->segment_size; 
+                current += PAGE_SIZE) 
+            {
+                MMU_pf_free(current_page);
+            }
+        }
+    }
 }

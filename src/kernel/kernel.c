@@ -46,13 +46,11 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Switch execution to kernel space
     // asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    kmain_vspace();
-}
 
-void kmain_vspace() {
-    cleanup_old_virtual_space();
+    free_multiboot_sections();
 
     init_sys_calls();
+
     PROC_init();
     PROC_create_kthread(kmain_thread, NULL);
 
