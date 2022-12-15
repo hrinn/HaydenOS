@@ -342,13 +342,13 @@ superblock_t *FAT_detect(block_dev_t *dev) {
     dev->read_block(dev, 0, &superblock->fat32);
 
     if (superblock->fat32.signature != 0x28 && superblock->fat32.signature != 0x29) {
-        printk("FAT_detect(): Failed to validate FAT signature\n");
+        printb("FAT_detect(): Failed to validate FAT signature\n");
         kfree(superblock);
         return NULL;
     }
 
     // Valid FAT32 FS, setup superblock
-    printk("Detected FAT32 filesystem\n");
+    printb("Detected FAT32 filesystem on %s\n", dev->name);
     superblock->superblock.type = "FAT32";
     superblock->superblock.name = superblock->fat32.label;
     superblock->superblock.dev = dev;
@@ -357,7 +357,6 @@ superblock_t *FAT_detect(block_dev_t *dev) {
     // Setup root inode
     superblock->superblock.root_inode = (inode_t *)FAT_init_inode((superblock_t *)superblock, superblock->fat32.root_cluster_number);
     superblock->superblock.root_inode->st_mode |= S_IFDIR;
-
 
     return (superblock_t *)superblock;
 }

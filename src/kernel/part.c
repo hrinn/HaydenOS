@@ -78,9 +78,10 @@ int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
 
         // Set partition name
         len = strlen(drive->dev.name);
-        part_name = (char *)kmalloc(len + 1);
+        part_name = (char *)kmalloc(len + 2);
         memcpy(part_name, drive->dev.name, len);
         part_name[len] = (char)('0' + i);
+        part_name[len + 1] = '\0';
         dev->ata.dev.name = part_name;
 
         BLK_register((block_dev_t *)dev);

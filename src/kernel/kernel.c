@@ -40,10 +40,9 @@ void kmain(struct multiboot_info *multiboot_tags) {
     parse_multiboot_tags(multiboot_tags);
     setup_pml4(stack_addresses);
 
-    // Remap TSS stack addresses
+    // TODO: Remap kernel and IST stacks
     // TSS_remap(stack_addresses + 1, 3);
 
-    // Switch execution to kernel space
     // asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
 
     free_multiboot_sections();
@@ -51,8 +50,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
     init_sys_calls();
 
     PROC_init();
-    // PROC_create_kthread(kmain_thread, NULL);
-    setup_snakes(0);
+    PROC_create_kthread(kmain_thread, NULL);
 
     while (1) {
         CLI;
@@ -85,18 +83,26 @@ void kmain_thread(void *arg) {
 
     printb("\nExecuting in kthread\n");
 
+    // Probe for ATA drive on primary master bus
     if ((drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ)) == NULL) {
         printb("No ATA drive was found on primary/master");
         return;
     }
 
+    // Parse Master Boot Record on sda
     if (parse_MBR(drive, partitions) != 1) {
         printb("Failed to parse MBR on %s\n", drive->dev.name);
         return;
     }
 
+    // Register FAT32 filesystem in VFS
     FS_register(FAT_detect);
-    superblock = FS_probe((block_dev_t *)partitions[0]);
+
+    // Probe sda0 for supported filesystem
+    if ((superblock = FS_probe((block_dev_t *)partitions[0])) == NULL) {
+        printb("Failed to find supported filesystem on %s\n", partitions[0]->ata.dev.name);
+        return;
+    };
 
     KBD_init();
 
