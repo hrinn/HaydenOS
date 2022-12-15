@@ -46,14 +46,14 @@ int parse_MBR(ATA_block_dev_t *drive, part_block_dev_t **partitions) {
     char *part_name;
     int i = 0, len;
 
-    printk("Parsing MBR on %s\n", drive->dev.name);
+    printb("Parsing MBR on %s\n", drive->dev.name);
 
     // Read the first block (MBR)
     drive->dev.read_block((block_dev_t *)drive, 0, block);
 
     // Validate the boot signature
     if (block[510] != 0x55 || block[511] != 0xAA) {
-        printk("parse_MBR(): failed to validate boot signature\n");
+        printb("parse_MBR(): failed to validate boot signature\n");
         return -1;
     }
     

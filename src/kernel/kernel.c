@@ -24,7 +24,6 @@ extern void call_user(uint64_t user_text, uint64_t user_stack);
 
 void kmain(struct multiboot_info *multiboot_tags) {
     virtual_addr_t stack_addresses[4];
-    GDB_PAUSE; // set gdbp=1
     
     // Remap GDT and initialize TSS
     GDT_remap();
@@ -52,7 +51,8 @@ void kmain(struct multiboot_info *multiboot_tags) {
     init_sys_calls();
 
     PROC_init();
-    PROC_create_kthread(kmain_thread, NULL);
+    // PROC_create_kthread(kmain_thread, NULL);
+    setup_snakes(0);
 
     while (1) {
         CLI;
@@ -85,8 +85,16 @@ void kmain_thread(void *arg) {
 
     printb("\nExecuting in kthread\n");
 
-    drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
-    parse_MBR(drive, partitions);
+    if ((drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ)) == NULL) {
+        printb("No ATA drive was found on primary/master");
+        return;
+    }
+
+    if (parse_MBR(drive, partitions) != 1) {
+        printb("Failed to parse MBR on %s\n", drive->dev.name);
+        return;
+    }
+
     FS_register(FAT_detect);
     superblock = FS_probe((block_dev_t *)partitions[0]);
 

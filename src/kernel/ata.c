@@ -233,7 +233,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     // Floating bus detection
     status = inb(STAT_REG(base));
     if (status == FLOATING_BUS) {
-        printk("ata_probe(): No disks on IDE bus\n");
+        printb("ata_probe(): No disks on IDE bus\n");
         return NULL;
     }
 
@@ -251,7 +251,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     // Read status port
     status = inb(STAT_REG(base));
     if (status == 0) {
-        printk("ata_probe(): Drive does not exist\n");
+        printb("ata_probe(): Drive does not exist\n");
         return NULL;
     }
 
@@ -263,7 +263,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     // Check LBAmid and LBAhi to see if they are non zero
     // If so, the drive is not ATA
     if (inb(CYL_LOW_REG(base)) != 0 || inb(CYL_HIGH_REG(base)) != 0) {
-        printk("ata_probe(): Drive is not ATA\n");
+        printb("ata_probe(): Drive is not ATA\n");
         return NULL;
     }
 
@@ -274,7 +274,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
 
     // Check if ERR is clear
     if (inb(ERROR_REG(base)) != 0) {
-        printk("ata_probe(): Error after IDENTIFY\n");
+        printb("ata_probe(): Error after IDENTIFY\n");
         return NULL;
     }
     
@@ -286,7 +286,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
 
     // Ensure drive supports LBA48
     if ((data[83] & 0x400) == 0) {
-        printk("ata_probe(): Device doesn't support LBA48 mode\n");
+        printb("ata_probe(): Device doesn't support LBA48 mode\n");
         return NULL;
     }
 
@@ -295,7 +295,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     sectors |= (uint64_t) data[102] << 32;
     sectors |= (uint64_t) data[103] << 48;
 
-    printk("Identified ATA drive (%s)\n", name);
+    printb("Identified ATA drive (%s)\n", name);
 
     // Ready to allocate ATA dev struct
     ata_dev = (ATA_block_dev_t *)kmalloc(sizeof(ATA_block_dev_t));

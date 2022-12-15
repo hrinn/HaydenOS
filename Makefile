@@ -10,13 +10,14 @@ grub_cfg := bin/img/boot/grub/grub.cfg
 
 .PHONY: all clean run gdb release
 
-all: binaries
+all: boot
 
-gdb: CFLAGS += -DGDB -g
+gdb: CFLAGS += -g
+gdb: DEBUG_FLAGS := -s -S
 gdb: run
 
 release: CFLAGS += -Os
-release: binaries
+release: boot
 
 export CFLAGS
 
@@ -33,13 +34,13 @@ $(grub_cfg): src/kernel/grub.cfg
 	@mkdir -p bin/img/boot/grub
 	@cp src/kernel/grub.cfg $(grub_cfg)
 
-binaries: $(build_dir) $(kernel) $(init)
+boot: $(build_dir) $(kernel) $(init) $(grub_cfg)
 
-$(img): binaries $(grub_cfg)
+$(img): boot
 	@tools/img.sh
 
 run: $(img)
-	qemu-system-x86_64 -s -drive format=raw,file=$(img) -serial stdio
+	qemu-system-x86_64 $(DEBUG_FLAGS) -drive format=raw,file=$(img) -serial stdio
 
 clean:
 	@rm -r bin
