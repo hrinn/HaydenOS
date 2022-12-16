@@ -1,38 +1,38 @@
 ENTRY(start)
 OUTPUT_FORMAT(elf64-x86-64)
 
+_virtual_base = 0xFFFFFFFF80000000;
+
 SECTIONS {
     . = 1M;
 
-    .rodata :
+    .multiboot : 
     {
-        /* ensure that the multiboot header is at the beginning */
-        KEEP(*(.multiboot_header))
-        *(.rodata .rodata.*)
-        . = ALIGN(4K);
+        *(.multiboot.header)
+        *(.multiboot.gdt64)
+        *(.multiboot.text)
+        *(.multiboot.bss)
     }
 
-    .eh_frame :
+    . += _virtual_base;
+
+    .text ALIGN(4K) : AT(ADDR(.text) - _virtual_base)
     {
-        *(.eh_frame .eh_frame.*)
-        . = ALIGN(4K);
+        *(.text)
     }
 
-    .text :
+    .rodata ALIGN(4K) : AT(ADDR(.rodata) - _virtual_base)
     {
-        *(.text .text.*)
-        . = ALIGN(4K);
+        *(.rodata)
     }
 
-    .data :
+    .data ALIGN(4K) : AT(ADDR(.data) - _virtual_base)
     {
-        *(.data .data.*)
-        . = ALIGN(4K);
+        *(.data)
     }
 
-    .bss :
+    .bss ALIGN(4K) : AT(ADDR(.bss) - _virtual_base)
     {
-        *(.bss .bss.*)
-        . = ALIGN(4K);
+        *(.bss)
     }
 }

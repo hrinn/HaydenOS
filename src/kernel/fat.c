@@ -214,11 +214,11 @@ file_t *FAT_file_open(inode_t *inode) {
     file->inode = inode;
     file->first_cluster = inode->st_ino;
     file->cursor = 0;
-    file->close = VSPACE(FAT_file_close);
-    file->read = VSPACE(FAT_file_read);
+    file->close = FAT_file_close;
+    file->read = FAT_file_read;
     file->write = NULL;
-    file->lseek = VSPACE(FAT_file_lseek);
-    file->mmap = VSPACE(FAT_file_mmap);
+    file->lseek = FAT_file_lseek;
+    file->mmap = FAT_file_mmap;
 
     return file;
 }
@@ -231,9 +231,9 @@ FAT_inode_t *FAT_init_inode(superblock_t *sb, unsigned long cluster_num) {
     inode->inode.parent_superblock = sb;
 
     // Set inode methods
-    inode->inode.readdir = VSPACE(FAT_readdir);
-    inode->inode.free = VSPACE(FAT_inode_free);
-    inode->inode.open = VSPACE(FAT_file_open);
+    inode->inode.readdir = FAT_readdir;
+    inode->inode.free = FAT_inode_free;
+    inode->inode.open = FAT_file_open;
     inode->inode.unlink = NULL;
 
     return inode;
@@ -342,22 +342,21 @@ superblock_t *FAT_detect(block_dev_t *dev) {
     dev->read_block(dev, 0, &superblock->fat32);
 
     if (superblock->fat32.signature != 0x28 && superblock->fat32.signature != 0x29) {
-        printk("FAT_detect(): Failed to validate FAT signature\n");
+        printb("FAT_detect(): Failed to validate FAT signature\n");
         kfree(superblock);
         return NULL;
     }
 
     // Valid FAT32 FS, setup superblock
-    printk("Detected FAT32 filesystem\n");
+    printb("Detected FAT32 filesystem on %s\n", dev->name);
     superblock->superblock.type = "FAT32";
     superblock->superblock.name = superblock->fat32.label;
     superblock->superblock.dev = dev;
-    superblock->superblock.read_inode = VSPACE(FAT_read_inode);
+    superblock->superblock.read_inode = FAT_read_inode;
 
     // Setup root inode
     superblock->superblock.root_inode = (inode_t *)FAT_init_inode((superblock_t *)superblock, superblock->fat32.root_cluster_number);
     superblock->superblock.root_inode->st_mode |= S_IFDIR;
-
 
     return (superblock_t *)superblock;
 }

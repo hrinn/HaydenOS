@@ -494,3 +494,20 @@ ISR_WRAPPER 252
 ISR_WRAPPER 253
 ISR_WRAPPER 254
 ISR_WRAPPER 255
+
+global ist_stack1_bottom, ist_stack1_top, ist_stack2_bottom
+global ist_stack2_top, ist_stack3_bottom, ist_stack3_top
+
+section .bss
+align 0x1000
+ist_stack1_bottom:
+    resb 4096 * 2
+ist_stack1_top:
+
+ist_stack2_bottom:
+    resb 4096 * 2
+ist_stack2_top:
+
+ist_stack3_bottom:
+    resb 4096 * 2
+ist_stack3_top:

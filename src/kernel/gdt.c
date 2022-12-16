@@ -7,8 +7,6 @@
 #define TSS_SELECTOR 0x28
 #define TSS_TYPE 0x9
 
-extern uint64_t gdt64;
-
 typedef struct {
     uint16_t limit_15_0;
     uint16_t addr_15_0;
@@ -94,6 +92,7 @@ typedef struct {
 
 static tss_t tss;
 static gdt_t gdt;
+extern gdt_t gdt64;
 extern uint8_t ist_stack1_top;
 extern uint8_t ist_stack2_top;
 extern uint8_t ist_stack3_top;

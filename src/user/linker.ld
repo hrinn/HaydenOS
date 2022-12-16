@@ -7,15 +7,15 @@ SECTIONS {
         *(.text);
     }
 
+    .rodata : {
+        *(.rodata);
+    }
+
     .data : {
         *(.data);
     }
 
     .bss : {
         *(.bss);
-    }
-
-    .rodata : {
-        *(.rodata);
     }
 }

@@ -59,5 +59,7 @@ typedef superblock_t *(*FS_detect_cb)(struct block_dev *dev);
 void FS_register(FS_detect_cb probe);
 superblock_t *FS_probe(block_dev_t *dev);
 inode_t *FS_inode_for_path(char *path, inode_t *cwd);
+void FS_print(superblock_t *superblock);
+void FS_print_file(char *path, superblock_t *superblock);
 
 #endif

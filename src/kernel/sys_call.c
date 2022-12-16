@@ -13,7 +13,7 @@
 sys_call_f sys_calls[NUM_SYS_CALLS];
 
 void set_sys_call(uint8_t num, sys_call_f sys_call) {
-    sys_calls[num] = VSPACE(sys_call);
+    sys_calls[num] = sys_call;
 }
 
 void init_sys_calls() {
@@ -21,5 +21,10 @@ void init_sys_calls() {
 }
 
 uint64_t sys_call_isr(uint64_t sys_call_index, uint64_t arg) {
-    return sys_calls[sys_call_index](arg);
+    sys_call_f sys_call = sys_calls[sys_call_index];
+    if (sys_call != NULL) {
+        return sys_call(arg);
+    }
+    printk("Invalid syscall %ld!\n", sys_call_index);
+    return 0;
 }

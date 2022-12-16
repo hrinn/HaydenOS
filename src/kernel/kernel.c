@@ -24,7 +24,6 @@ extern void call_user(uint64_t user_text, uint64_t user_stack);
 
 void kmain(struct multiboot_info *multiboot_tags) {
     virtual_addr_t stack_addresses[4];
-    GDB_PAUSE; // set gdbp=1
     
     // Remap GDT and initialize TSS
     GDT_remap();
@@ -41,22 +40,17 @@ void kmain(struct multiboot_info *multiboot_tags) {
     parse_multiboot_tags(multiboot_tags);
     setup_pml4(stack_addresses);
 
-    // Remap TSS stack addresses
-    TSS_remap(stack_addresses + 1, 3);
+    // TODO: Remap kernel and IST stacks
+    // TSS_remap(stack_addresses + 1, 3);
 
-    // Switch execution to kernel space
-    asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-    VSPACE(kmain_vspace)();
-}
+    // asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
 
-void kmain_vspace() {
-    apply_isr_offset(KERNEL_TEXT_START);
-    cleanup_old_virtual_space();    // This also sets identity mapped region to no execute
-    SER_kspace_offset(KERNEL_TEXT_START);
+    free_multiboot_sections();
 
     init_sys_calls();
+
     PROC_init();
-    PROC_create_kthread(VSPACE(kmain_thread), NULL);
+    PROC_create_kthread(kmain_thread, NULL);
 
     while (1) {
         CLI;
@@ -89,10 +83,26 @@ void kmain_thread(void *arg) {
 
     printb("\nExecuting in kthread\n");
 
-    drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ);
-    parse_MBR(drive, partitions);
-    FS_register(VSPACE(FAT_detect));
-    superblock = FS_probe((block_dev_t *)partitions[0]);
+    // Probe for ATA drive on primary master bus
+    if ((drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ)) == NULL) {
+        printb("No ATA drive was found on primary/master");
+        return;
+    }
+
+    // Parse Master Boot Record on sda
+    if (parse_MBR(drive, partitions) != 1) {
+        printb("Failed to parse MBR on %s\n", drive->dev.name);
+        return;
+    }
+
+    // Register FAT32 filesystem in VFS
+    FS_register(FAT_detect);
+
+    // Probe sda0 for supported filesystem
+    if ((superblock = FS_probe((block_dev_t *)partitions[0])) == NULL) {
+        printb("Failed to find supported filesystem on %s\n", partitions[0]->ata.dev.name);
+        return;
+    };
 
     KBD_init();
 
