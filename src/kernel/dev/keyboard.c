@@ -9,8 +9,8 @@
 #include "proc.h"
 #include "proc_queue.h"
 #include "circ_buff.h"
-#include "sys_call.h"
-#include "sys_call_ints.h"
+#include "init_system_calls.h"
+#include "syscall.h"
 
 // I/O Port Addresses
 #define PS2_STATUS 0x64

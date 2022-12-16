@@ -7,7 +7,7 @@
 #include "scheduler.h"
 #include "gdt.h"
 #include "printk.h"
-#include "sys_call_ints.h"
+#include "syscall.h"
 
 #define IE_FLAG 0x200
 #define RES_FLAG 0x2

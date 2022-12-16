@@ -1,4 +1,4 @@
-#include "sys_call_ints.h"
+#include "syscall.h"
 #include "stdint-gcc.h"
 
 void print(char *str, int len) {

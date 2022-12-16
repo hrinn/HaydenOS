@@ -1,8 +1,12 @@
+CFLAGS += -fpic
+
+out_dir := ../../$(out_dir)
+obj_dir := ../../$(obj_dir)
+
 linker := linker.ld
-build_dir := ../../bin
 
-$(build_dir)/init.bin: $(build_dir)/init.o $(build_dir)/sys_call_ints.o
-	@$(LD) -n -T $(linker) -o $(build_dir)/init.bin $(build_dir)/init.o $(build_dir)/sys_call_ints.o
+$(out_dir)/init.bin: $(obj_dir)/init.o $(obj_dir)/syscall.o
+	@$(LD) -n -T $(linker) -o $(out_dir)/init.bin $(obj_dir)/init.o $(obj_dir)/syscall.o
 
-$(build_dir)/init.o: init.c
-	@$(CC) $(CFLAGS) -fpic -c init.c -o $(build_dir)/init.o
+$(obj_dir)/init.o: init.c
+	@$(CC) $(CFLAGS) -c init.c -o $(obj_dir)/init.o

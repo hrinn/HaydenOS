@@ -1,11 +1,11 @@
-#include "sys_call.h"
+#include "init_system_calls.h"
 #include "memdef.h"
 #include "mmu.h"
 #include "irq.h"
 #include <stddef.h>
 #include "gdt.h"
 #include "printk.h"
-#include "sys_call_ints.h"
+#include "syscall.h"
 #include "printk.h"
 
 #define NUM_SYS_CALLS 256

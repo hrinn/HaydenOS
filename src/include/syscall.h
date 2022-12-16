@@ -1,5 +1,5 @@
-#ifndef SYS_CALL_INTS_H
-#define SYS_CALL_INTS_H
+#ifndef SYSCALL_H
+#define SYSCALL_H
 
 #define YIELD_SYS_CALL 0
 #define GETC_SYS_CALL 1

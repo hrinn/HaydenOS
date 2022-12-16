@@ -5,7 +5,7 @@
 #include "memdef.h"
 #include "proc_queue.h"
 #include "irq.h"
-#include "sys_call.h"
+#include "init_system_calls.h"
 
 typedef void (*kproc_t)(void *);
 
