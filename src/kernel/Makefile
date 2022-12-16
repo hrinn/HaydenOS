@@ -1,23 +1,32 @@
-CFLAGS += -mno-red-zone -fomit-frame-pointer -fpic -fno-pie -mcmodel=kernel
+CFLAGS += -mno-red-zone -fomit-frame-pointer -fpic -fno-pie -mcmodel=kernel -Iinclude
 
-build_dir := ../../bin
+out_dir := ../../$(out_dir)
+obj_dir := ../../$(obj_dir)
+
 linker := linker.ld
-kernel := $(build_dir)/img/boot/kernel.bin
+kernel := $(out_dir)/img/boot/kernel.bin
 
-asm_src_files := $(wildcard *.asm)
-asm_obj_files := $(patsubst %.asm, \
-	$(build_dir)/%.o, $(asm_src_files))
+sub_dirs := arch boot dev fs irq lib mem proc test
 
-c_src_files := $(wildcard *.c)
-c_obj_files := $(patsubst %.c, \
-	$(build_dir)/%.o, $(c_src_files))
+c_srcs := $(wildcard *.c $(foreach fd, $(sub_dirs), $(fd)/*.c))
+c_objs := $(addprefix $(obj_dir)/, $(c_srcs:c=o))
 
-$(kernel): $(asm_obj_files) $(c_obj_files) $(linker)
-	@mkdir -p $(build_dir)/img/boot
-	@$(LD) -n -T $(linker) -o $(kernel) $(asm_obj_files) $(c_obj_files)
+asm_srcs := $(wildcard *.asm $(foreach fd, $(sub_dirs), $(fd)/*.asm))
+asm_objs := $(addprefix $(obj_dir)/, $(asm_srcs:asm=o))
 
-$(build_dir)/%.o: %.asm
+$(kernel): $(asm_objs) $(c_objs) $(linker)
+	@$(LD) -n -T $(linker) -o $(kernel) $(c_objs) $(asm_objs)
+
+$(obj_dir)/%.o: %.c
+	@mkdir -p $(@D)
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(obj_dir)/%.o: %.asm
+	@mkdir -p $(@D)
 	@nasm -felf64 $< -o $@
 
-$(build_dir)/%.o: %.c
-	@$(CC) $(CFLAGS) -c $< -o $@
+echo:
+	@echo "c_srcs: $(c_srcs)"
+	@echo "c_objs: $(c_objs)"
+	@echo "asm_srcs: $(asm_srcs)"
+	@echo "asm_objs: $(asm_objs)"

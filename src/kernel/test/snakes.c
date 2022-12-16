@@ -35,7 +35,7 @@
 #include "vga.h"
 // #include "asm.h"
 #include "proc.h"
-#include "sys_call_ints.h"
+#include "syscall.h"
 #include "memdef.h"
 
 #define SN_LENGTH 10

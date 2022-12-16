@@ -4,7 +4,7 @@
 #include "registers.h"
 #include "ioport.h"
 #include "gdt.h"
-#include "sys_call.h"
+#include "init_syscalls.h"
 #include "proc.h"
 
 // Interrupt configuration

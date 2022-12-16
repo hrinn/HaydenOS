@@ -6,7 +6,7 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include "sys_call.h"
+#include "init_syscalls.h"
 #include "part.h"
 #include "fat.h"
 #include <stddef.h>
@@ -15,7 +15,7 @@
 #include "snakes.h"
 #include "string.h"
 #include "kmalloc.h"
-#include "sys_call_ints.h"
+#include "syscall.h"
 #include "elf.h"
 
 void kmain_vspace(void);
