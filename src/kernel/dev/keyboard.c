@@ -9,7 +9,7 @@
 #include "proc.h"
 #include "proc_queue.h"
 #include "circ_buff.h"
-#include "init_system_calls.h"
+#include "init_syscalls.h"
 #include "syscall.h"
 
 // I/O Port Addresses

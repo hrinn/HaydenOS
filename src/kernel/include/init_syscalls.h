@@ -1,5 +1,5 @@
-#ifndef INIT_SYSTEM_CALLS_H
-#define INIT_SYSTEM_CALLS_H
+#ifndef INIT_SYSCALLS_H
+#define INIT_SYSCALLS_H
 
 #include <stdint-gcc.h>
 

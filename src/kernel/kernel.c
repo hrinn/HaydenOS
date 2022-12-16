@@ -6,7 +6,7 @@
 #include "serial.h"
 #include "mmu.h"
 #include "proc.h"
-#include "init_system_calls.h"
+#include "init_syscalls.h"
 #include "part.h"
 #include "fat.h"
 #include <stddef.h>

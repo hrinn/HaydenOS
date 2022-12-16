@@ -18,11 +18,11 @@ $(kernel): $(asm_objs) $(c_objs) $(linker)
 	@$(LD) -n -T $(linker) -o $(kernel) $(c_objs) $(asm_objs)
 
 $(obj_dir)/%.o: %.c
-	mkdir -p $(@D)
-	$(CC) $(CFLAGS) -c $< -o $@
+	@mkdir -p $(@D)
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(obj_dir)/%.o: %.asm
-	mkdir -p $(@D)
+	@mkdir -p $(@D)
 	@nasm -felf64 $< -o $@
 
 echo:
