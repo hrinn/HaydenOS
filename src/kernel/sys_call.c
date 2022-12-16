@@ -21,5 +21,10 @@ void init_sys_calls() {
 }
 
 uint64_t sys_call_isr(uint64_t sys_call_index, uint64_t arg) {
-    return sys_calls[sys_call_index](arg);
+    sys_call_f sys_call = sys_calls[sys_call_index];
+    if (sys_call != NULL) {
+        return sys_call(arg);
+    }
+    printk("Invalid syscall %ld!\n", sys_call_index);
+    return 0;
 }

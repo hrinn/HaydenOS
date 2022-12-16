@@ -515,8 +515,10 @@ void map_range(page_table_t *pml4, physical_addr_t pstart, virtual_addr_t vstart
 }
 
 // Demand allocates a virtual address range for user access
-void user_allocate_range(virtual_addr_t start, uint64_t size) {
+// Returns address of top of stack
+virtual_addr_t user_allocate_range(virtual_addr_t start, uint64_t size) {
     map_range(pml4, 0, start, size, PAGE_ALLOCATED | PAGE_USER_ACCESS | PAGE_WRITABLE);
+    return start + size;
 }
 
 // Returns the page frame associated with a virtual address if it is mapped in PML4

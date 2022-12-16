@@ -248,12 +248,7 @@ int init_ps2_keyboard() {
 
 int KBD_init() {
     int res;
-    if ((res = init_ps2_controller()) != 1) {
-        return res;
-    }
-    if ((res = init_ps2_keyboard()) != 1) {
-        return res;
-    }
+    
     // Initialize blocking queue
     PROC_init_queue(&keyb.blocked);
 
@@ -262,6 +257,14 @@ int KBD_init() {
 
     // Initialize getc sys call
     set_sys_call(GETC_SYS_CALL, getc_sys_call);
+
+    // Initialize hardware
+    if ((res = init_ps2_controller()) != 1) {
+        return res;
+    }
+    if ((res = init_ps2_keyboard()) != 1) {
+        return res;
+    }
 
     // Initialize interrupts
     IRQ_set_handler(KEYBOARD_IRQ, keyboard_handler, NULL);
