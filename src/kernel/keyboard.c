@@ -36,14 +36,16 @@
 // Keyboard Commands
 #define CMD_RST_KEYBOARD 0xFF
 #define CMD_ENABLE_SCAN 0xF4
-#define CMD_SET_SCANCODE 0xF0
-#define SUBCMD_SCANCODE_SET_2 2
+#define CMD_SCANCODE 0xF0
+#define SUBCMD_SET_SCANCODE_2 2
+#define SUBCMD_GET_SCANCODE 0
 
 // Responses
 #define PS2_TEST_PASS 0x55
 #define KEYB_RESEND 0xFE
 #define KEYB_ACK 0xFA
 #define KEYB_CONT 0xAA
+#define KEYB_SCANCODE_SET_2 0x41
 
 // Other
 #define N_TRIES 3
@@ -224,16 +226,17 @@ int init_ps2_keyboard() {
         return -3;
     }
 
-    // Set scan code set
+    // Send scancode command
     DEBUG_PRINT("Setting keyboard to scan code set 2\n");
-    if ((resp = write_keyboard(CMD_SET_SCANCODE)) == KEYB_CONT) {
-        if ((resp = write_keyboard(SUBCMD_SCANCODE_SET_2)) != KEYB_ACK) {
-            printk("init_ps2_keyboard(): Failed to set scan code to set 2, received 0x%x\n", resp);
-            return -5;
-        }
-    } else {
-        printk("init_ps2_keyboard(): Failed to set scan code set, received 0x%x\n", resp);
+    if ((resp = write_keyboard(CMD_SCANCODE)) != KEYB_ACK) {
+        printk("init_ps2_keyboard(): Failed to send scancode command, received 0x%x\n", resp);
         return -4;
+    }
+
+    // Send subcommand to set keyboard to scancode set 2
+    if ((resp = write_keyboard(SUBCMD_SET_SCANCODE_2)) != KEYB_ACK) {
+        printk("init_ps2_keyboard(): Failed to set keyboard to scancode set 2, received 0x%x\n", resp);
+        return -5;
     }
 
     // Enable keyboard scanning
