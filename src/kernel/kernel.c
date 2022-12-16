@@ -104,7 +104,9 @@ void kmain_thread(void *arg) {
         return;
     };
 
-    KBD_init();
+    if (KBD_init() < 0) {
+        printb("Failed to initialize keyboard\n");
+    }
 
     setup_userspace(superblock->root_inode, "/bin/init.bin");
 }

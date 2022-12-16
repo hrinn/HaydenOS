@@ -9,10 +9,4 @@
 #define DEBUG_PRINT(...)
 #endif
 
-#ifdef GDB
-#define GDB_PAUSE int gdbp = 0; while (!gdbp)
-#else
-#define GDB_PAUSE
-#endif
-
 #endif
