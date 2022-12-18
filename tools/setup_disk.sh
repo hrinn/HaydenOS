@@ -14,7 +14,7 @@ fi
 
 echo "Formatting $disk for HaydenOS"
 sudo parted $disk mklabel msdos
-sudo parted $disk mkpart primary fat32 1MB 100%
+sudo parted $disk mkpart primary fat32 1MB 1GB
 sudo parted $disk set 1 boot on
 
 echo "Creating FAT32 $part on $disk"

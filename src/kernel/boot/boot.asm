@@ -102,7 +102,7 @@ check_long_mode:
     ; use extended info to test if long mode is available
     mov eax, 0x80000001     ; argument for extended processor info
     cpuid                   ; returns various feature bits in ecx and edx
-    test edx, 1 << 2        ; test if the LM-bit is set in the D-register
+    test edx, 1 << 29       ; test if the LM-bit is set in the D-register
     jz .no_long_mode        ; if it's not set, there is no long mode
     ret
 .no_long_mode:
