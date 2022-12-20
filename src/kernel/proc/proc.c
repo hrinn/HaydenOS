@@ -1,6 +1,6 @@
 #include "proc.h"
 #include "irq.h"
-#include "mmu.h"
+#include "stack_alloc.h"
 #include "memdef.h"
 #include <stddef.h>
 #include "kmalloc.h"

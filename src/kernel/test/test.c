@@ -1,5 +1,5 @@
 #include "test.h"
-#include "mmu.h"
+#include "heap_alloc.h"
 #include "stddef.h"
 #include "stdbool.h"
 #include "printk.h"

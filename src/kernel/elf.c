@@ -1,7 +1,7 @@
 #include "elf.h"
 #include "printk.h"
 #include "string.h"
-#include "mmu.h"
+#include "page_table.h"
 
 #define BITSIZE_64 2
 #define LITTLE_ENDIAN 1

@@ -1,6 +1,5 @@
 #include "init_syscalls.h"
 #include "memdef.h"
-#include "mmu.h"
 #include "irq.h"
 #include <stddef.h>
 #include "gdt.h"
