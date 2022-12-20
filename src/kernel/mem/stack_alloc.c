@@ -3,8 +3,6 @@
 #include "page_table.h"
 #include "kmalloc.h"
 
-#define KERNEL_STACKS_START 0xffffff8000000000
-
 typedef struct free_thread_stack {
     virtual_addr_t top;
     struct free_thread_stack *next;

@@ -1,27 +1,9 @@
 #include <stddef.h>
-#include <stdbool.h>
 #include "printk.h"
 #include "string.h"
 #include "error.h"
 #include "page_table.h"
 
-// Page table
-#define KERNEL_HEAP_START 0xffff808000000000
-#define KERNEL_PSTACKS_START 0xffffff0000000000
-
-// Addresses and offsets
-#define SECTION_SIZE 0x7FFFFFFFFF
-
-// External labels and functions
-extern uint8_t p4_table;
-extern uint8_t p3_table_upper;
-extern uint8_t p3_table_lower;
-extern uint8_t stack_bottom;
-extern uint8_t ist_stack1_bottom;
-extern uint8_t ist_stack2_bottom;
-extern uint8_t ist_stack3_bottom;
-
-// Static variables
 static virtual_addr_t kernel_brk = KERNEL_HEAP_START; // Next available page
 
 void *MMU_alloc_page() {

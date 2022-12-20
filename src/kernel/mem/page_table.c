@@ -51,6 +51,14 @@ typedef struct {
     uint64_t sign_extension : 16;
 } __attribute__((packed)) pt_index_t;
 
+extern uint8_t p4_table;
+extern uint8_t p3_table_upper;
+extern uint8_t p3_table_lower;
+extern uint8_t stack_bottom;
+extern uint8_t ist_stack1_bottom;
+extern uint8_t ist_stack2_bottom;
+extern uint8_t ist_stack3_bottom;
+
 static page_table_t *pml4;
 extern memory_map_t mmap;
 extern void enable_no_execute(void);
