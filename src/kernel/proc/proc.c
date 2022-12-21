@@ -22,7 +22,7 @@ process_t *next_proc;
 
 // Initializes the multitasking system
 void PROC_init(void) {
-    virtual_addr_t stack_top = allocate_thread_stack();
+    virtual_addr_t stack_top = MMU_alloc_stack();
 
     set_sys_call(YIELD_SYS_CALL, yield_sys_call);
     IRQ_set_handler(KEXIT_IRQ, kexit_isr, NULL);
@@ -59,7 +59,7 @@ void kthread_wrapper(kproc_t entry_point, void *arg) {
 struct Process *PROC_create_kthread(kproc_t entry_point, void *arg) {
     process_t *context = (process_t *)kcalloc(1, sizeof(process_t));
 
-    context->stack_top = allocate_thread_stack();
+    context->stack_top = MMU_alloc_stack();
 
     // Set the registers that are currently known
     context->pid = pid++;
@@ -88,7 +88,7 @@ uint64_t yield_sys_call(uint64_t arg) {
 // Exits and destroys the state of the caller thread
 void kexit_isr(uint8_t irq, uint32_t error_code, void *arg) {
     // Deallocate the stack
-    free_thread_stack(curr_proc->stack_top);
+    MMU_free_stack(curr_proc->stack_top);
 
     // Deschedule the thread
     sched_remove(curr_proc);

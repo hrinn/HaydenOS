@@ -3,7 +3,7 @@
 
 #include "memdef.h"
 
-virtual_addr_t allocate_thread_stack();
-void free_thread_stack(virtual_addr_t top);
+virtual_addr_t MMU_alloc_stack();
+void MMU_free_stack(virtual_addr_t top);
 
 #endif

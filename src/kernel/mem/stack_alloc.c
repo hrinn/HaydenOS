@@ -13,7 +13,7 @@ static free_thread_stack_t *free_thread_stacks_head;
 
 // Demand allocates a 2 page stack in the thread stack region of virtual memory
 // Returns the addresses of the top of the stack
-virtual_addr_t allocate_thread_stack() {
+virtual_addr_t MMU_alloc_stack() {
     virtual_addr_t vcurrent;
     virtual_addr_t start = thread_stack_brk;
 
@@ -37,7 +37,7 @@ virtual_addr_t allocate_thread_stack() {
     return vcurrent;
 }
 
-void free_thread_stack(virtual_addr_t top) {
+void MMU_free_stack(virtual_addr_t top) {
     virtual_addr_t vcurrent;
     free_thread_stack_t *new;
 
