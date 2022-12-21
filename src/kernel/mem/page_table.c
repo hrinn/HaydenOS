@@ -51,14 +51,6 @@ typedef struct {
     uint64_t sign_extension : 16;
 } __attribute__((packed)) pt_index_t;
 
-extern uint8_t p4_table;
-extern uint8_t p3_table_upper;
-extern uint8_t p3_table_lower;
-extern uint8_t stack_bottom;
-extern uint8_t ist_stack1_bottom;
-extern uint8_t ist_stack2_bottom;
-extern uint8_t ist_stack3_bottom;
-
 static page_table_t *pml4;
 extern memory_map_t mmap;
 extern void enable_no_execute(void);
@@ -253,7 +245,7 @@ int free_pf_from_virtual_addr(virtual_addr_t addr) {
 
 // Sets up a new PML4 with identity map, kernel text, and kernel stack
 // Loads PML4 into CR3
-void setup_pml4(virtual_addr_t *stack_addresses) {
+void setup_pml4() {
     struct free_mem_region *region;
 
     pml4 = allocate_table();
@@ -277,13 +269,6 @@ void setup_pml4(virtual_addr_t *stack_addresses) {
 
     // Map ELF sections into kernel text region
     remap_elf_sections(pml4);
-
-    // Map main stack and IST stacks
-    // stack_addresses[0] = map_stack(pml4, KERNEL_STACKS_START, (physical_addr_t)&stack_bottom);
-    // stack_addresses[1] = map_stack(pml4, stack_addresses[0], (physical_addr_t)&ist_stack1_bottom);
-    // stack_addresses[2] = map_stack(pml4, stack_addresses[1], (physical_addr_t)&ist_stack2_bottom);
-    // stack_addresses[3] = map_stack(pml4, stack_addresses[2], (physical_addr_t)&ist_stack3_bottom);
-    // thread_stack_brk = stack_addresses[3];
 
     printk("Loading new PML4...\n");
     set_cr3((physical_addr_t)pml4);

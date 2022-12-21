@@ -3,10 +3,10 @@
 
 #include <stdint-gcc.h>
 
-#define KERNEL_STACKS_START     0xffffff8000000000
-#define KERNEL_HEAP_START       0xffff808000000000
-#define KERNEL_PSTACKS_START    0xffffff0000000000
-#define KERNEL_TEXT_START       0xffffffff80000000
+#define KERNEL_TEXT_START       0xffffffff80000000  // Last 2GB
+#define KERNEL_STACKS_START     0xffffff8000000000  // PML4[511]
+#define KERNEL_HEAP_START       0xffff808000000000  // PML4[257]
+#define KERNEL_IMAP_START       0xffff800000000000  // PML4[256]
 
 #define USER_TEXT_START     0x8000000000
 #define USER_STACK_START    0x7f8000000000
