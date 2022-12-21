@@ -1,5 +1,5 @@
 #include "kmalloc.h"
-#include "mmu.h"
+#include "heap_alloc.h"
 #include "string.h"
 #include "debug.h"
 

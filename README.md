@@ -1,5 +1,5 @@
 # HaydenOS
-A kernel for x64. This is a project for Dr. John Bellardo's Implementing OS class at Cal Poly, SLO.
+A hobby kernel for x64. This project was started in Dr. John Bellardo's Implementing OS class at Cal Poly, SLO.
 
 ![Snakes!](https://i.imgur.com/E6uxOJ1.gif)
 

@@ -1,26 +1,31 @@
-#include "printk.h"
-#include "vga.h"
-#include "irq.h"
-#include "debug.h"
-#include "gdt.h"
-#include "serial.h"
-#include "mmu.h"
-#include "proc.h"
-#include "init_syscalls.h"
-#include "part.h"
-#include "fat.h"
 #include <stddef.h>
-#include "keyboard.h"
+
+#include "gdt.h"
+#include "irq.h"
+#include "serial.h"
+#include "vga.h"
+#include "printk.h"
+
+#include "multiboot.h"
+#include "pf_alloc.h"
+#include "page_table.h"
+#include "stack_alloc.h"
+
+#include "init_syscalls.h"
+#include "proc.h"
+
+#include "ata.h"
+#include "fat.h"
+#include "part.h"
 #include "vfs.h"
-#include "snakes.h"
-#include "string.h"
-#include "kmalloc.h"
-#include "syscall.h"
+
+#include "keyboard.h"
 #include "elf.h"
 
 void kmain_vspace(void);
 void kmain_thread(void *);
-extern void call_user(uint64_t user_text, uint64_t user_stack);
+void setup_userspace(inode_t *root, char *binary_path);
+extern void call_user(virtual_addr_t user_text, virtual_addr_t user_stack);
 
 void kmain(struct multiboot_info *multiboot_tags) {
     virtual_addr_t stack_addresses[4];
@@ -38,6 +43,7 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Initialize memory management
     parse_multiboot_tags(multiboot_tags);
+    MMU_init_pf_alloc();
     setup_pml4(stack_addresses);
 
     // TODO: Remap kernel and IST stacks
@@ -58,22 +64,6 @@ void kmain(struct multiboot_info *multiboot_tags) {
         STI;
         asm ("hlt");
     }
-}
-
-void setup_userspace(inode_t *root, char *binary_path) {
-    virtual_addr_t prog_start;
-    prog_start = ELF_mmap_binary(root, binary_path);
-
-    if (prog_start == 0) return;
-
-    // Setup userspace stack
-    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
-
-    // Setup user -> kernel stack
-    TSS_set_rsp(allocate_thread_stack(), 0);
-
-    printk("Jumping to user space... (%p)\n", (void *)prog_start);
-    call_user(prog_start, USER_STACK_START + PAGE_SIZE * 10);
 }
 
 void kmain_thread(void *arg) {
@@ -109,4 +99,20 @@ void kmain_thread(void *arg) {
     }
 
     setup_userspace(superblock->root_inode, "/bin/init.bin");
+}
+
+void setup_userspace(inode_t *root, char *binary_path) {
+    virtual_addr_t prog_start;
+    prog_start = ELF_mmap_binary(root, binary_path);
+
+    if (prog_start == 0) return;
+
+    // Setup userspace stack
+    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
+
+    // Setup user -> kernel stack
+    TSS_set_rsp(MMU_alloc_stack(), 0);
+
+    printk("Jumping to user space... (%p)\n", (void *)prog_start);
+    call_user(prog_start, USER_STACK_START + PAGE_SIZE * 10);
 }
