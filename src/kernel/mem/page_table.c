@@ -38,6 +38,8 @@ typedef struct page_table_entry {
     uint64_t no_execute : 1;
 } __attribute__((packed)) pt_entry_t;
 
+typedef uint64_t raw_pt_entry_t;
+
 typedef struct page_table {
     pt_entry_t table[NUM_ENTRIES];
 } __attribute__((packed)) page_table_t;
@@ -55,27 +57,42 @@ static page_table_t *pml4;
 extern memory_map_t mmap;
 extern void enable_no_execute(void);
 
-page_table_t *allocate_table() {
-    page_table_t *table = (page_table_t *)MMU_pf_alloc();
-    memset(table, 0, sizeof(page_table_t));
-    return table;
+extern page_table_t p4_table;
+static page_table_t *old_pml4 = &p4_table;
+
+physical_addr_t allocate_table() {
+    physical_addr_t table_addr = MMU_pf_alloc();
+    memset((void *)GET_VIRT_ADDR(table_addr), 0, sizeof(page_table_t));
+    return table_addr;
+}
+
+static inline physical_addr_t table_to_physical_addr(page_table_t *table) {
+    return GET_PHYS_ADDR((virtual_addr_t)table);
+}
+
+static inline page_table_t *physical_addr_to_table(physical_addr_t addr) {
+    return (page_table_t *)GET_VIRT_ADDR(addr);
 }
 
 // Gets page table pointer from page table entry
-page_table_t *entry_to_table(page_table_t *parent_table, int i) {
-    return (page_table_t *)((physical_addr_t)parent_table->table[i].base_addr << PAGE_OFFSET);
+static inline page_table_t *entry_to_table(page_table_t *parent_table, int i) {
+    return (page_table_t *)GET_VIRT_ADDR((parent_table->table[i].base_addr << PAGE_OFFSET));
 }
 
-// Takes a virtual address and maps it to a physical address in the provided PML4
+static inline raw_pt_entry_t *get_raw_pt_entry(page_table_t *pt, int i) {
+    return (raw_pt_entry_t *)GET_VIRT_ADDR((pt->table[i].base_addr << PAGE_OFFSET));
+}
+
+// Takes a virtual address and maps it to a physical address in the PML4
 // Sets provided flags
 void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
     pt_index_t *i;
     i = (pt_index_t *)&virt_addr;
     page_table_t *pdp, *pd, *pt;
-    uint64_t *pt_entry;
+    raw_pt_entry_t *pt_entry;
 
     if (!pml4->table[i->pml4_index].present) {
-        pml4->table[i->pml4_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
+        pml4->table[i->pml4_index].base_addr = allocate_table() >> PAGE_OFFSET;
         pml4->table[i->pml4_index].present = 1;
         if (flags & PAGE_WRITABLE) pml4->table[i->pml4_index].writable = 1;
         if (flags & PAGE_USER_ACCESS) pml4->table[i->pml4_index].user = 1;
@@ -83,7 +100,7 @@ void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flag
     pdp = entry_to_table(pml4, i->pml4_index);
 
     if (!pdp->table[i->pdp_index].present) {
-        pdp->table[i->pdp_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
+        pdp->table[i->pdp_index].base_addr = allocate_table() >> PAGE_OFFSET;
         pdp->table[i->pdp_index].present = 1;
         if (flags & PAGE_WRITABLE) pdp->table[i->pdp_index].writable = 1;
         if (flags & PAGE_USER_ACCESS) pdp->table[i->pdp_index].user = 1;
@@ -92,25 +109,15 @@ void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flag
 
 
     if (!pd->table[i->pd_index].present) {
-        pd->table[i->pd_index].base_addr = ((physical_addr_t)allocate_table()) >> PAGE_OFFSET;
+        pd->table[i->pd_index].base_addr = allocate_table() >> PAGE_OFFSET;
         pd->table[i->pd_index].present = 1;
         if (flags & PAGE_WRITABLE) pd->table[i->pd_index].writable = 1;
         if (flags & PAGE_USER_ACCESS) pd->table[i->pd_index].user = 1;
     }
     pt = entry_to_table(pd, i->pd_index);
 
-    pt_entry = (uint64_t *)&pt->table[i->pt_index];
+    pt_entry = get_raw_pt_entry(pt, i->pt_index);
     *pt_entry = phys_addr | flags;
-}
-
-
-// Identity maps a range of physical addresses in the PML4
-// Sets present and writable flags
-void identity_map(physical_addr_t start, physical_addr_t end) {
-    printk("Identity mapped region: [0x%lx, 0x%lx)\n", start, end);
-    for ( ; start < end; start += PAGE_SIZE) {
-        map_page(start, start, PAGE_PRESENT | PAGE_WRITABLE | PAGE_NO_EXECUTE);
-    }
 }
 
 // Maps a range of physical addresses in the PML4, starting at provided virtual address
@@ -243,35 +250,75 @@ int free_pf_from_virtual_addr(virtual_addr_t addr) {
     return 1;
 }
 
-// Sets up a new PML4 with identity map, kernel text, and kernel stack
+void map_physical_memory_huge_page(physical_addr_t addr, page_table_t *p3_mmap, int p3_index) {
+    p3_mmap->table[p3_index].base_addr = addr >> PAGE_OFFSET;
+    p3_mmap->table[p3_index].present = 1;
+    p3_mmap->table[p3_index].writable = 1;
+    p3_mmap->table[p3_index].no_execute = 1;
+    p3_mmap->table[p3_index].huge = 1;
+}
+
+void map_physical_memory(physical_addr_t pml4_addr) {
+    struct free_mem_region *last_region;
+    page_table_t *new_pml4 = (page_table_t *)pml4_addr;
+    physical_addr_t addr;
+    int p3_index = 0;
+
+    // Create a new p3 table for the physical memory map
+    physical_addr_t p3_mmap = MMU_pf_alloc();
+    memset((void *)p3_mmap, 0, PAGE_SIZE);
+
+    // Place this table in the current pml4 and new pml4 at index 256
+    old_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
+    old_pml4->table[PML4_MMAP_INDEX].present = 1;
+    old_pml4->table[PML4_MMAP_INDEX].writable = 1;
+    old_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
+
+    new_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
+    new_pml4->table[PML4_MMAP_INDEX].present = 1;
+    new_pml4->table[PML4_MMAP_INDEX].writable = 1;
+    new_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
+
+    // Find end address of physical memory;
+    last_region = mmap.first_region;
+    while (last_region->next != NULL) {
+        last_region = last_region->next;
+    }
+
+    // Map huge pages to cover the memory regions
+    for (addr = 0; addr < last_region->end; addr += HUGE_HUGE_PAGE_SIZE) {
+        map_physical_memory_huge_page(addr, (page_table_t *)p3_mmap, p3_index++);
+    }
+
+    printk("Mapped %dGB of physical memory at 0x%lx\n", p3_index, KERNEL_MMAP_START);
+}
+
+// Sets up a new PML4 with physical memory map, kernel text, and kernel stack
 // Loads PML4 into CR3
 void setup_pml4() {
-    struct free_mem_region *region;
-
-    pml4 = allocate_table();
-    printk("Created PML4 at physical address %p\n", (void *)pml4);
-
     // Register page fault handler
     IRQ_set_handler(PAGE_FAULT_IRQ, page_fault_handler, NULL);
 
     // Enable no execute flag in EFER
     enable_no_execute();
 
-    // Identity map our physical memory
-    region = mmap.first_region;
-    while (region != NULL) {
-        identity_map(region->start, region->end);
-        region = region->next;
-    }
 
-    // Identity map VGA address
-    map_page(VGA_ADDR, VGA_ADDR, PAGE_PRESENT | PAGE_WRITABLE | PAGE_NO_EXECUTE);
+    // Allocate a PML4
+    // Currently, physical memory can be directly accessed because of the identity map
+    physical_addr_t pml4_addr = MMU_pf_alloc();
+    memset((void *)pml4_addr, 0, PAGE_SIZE);
+    printk("Created PML4 at physical addr: 0x%lx\n", pml4_addr);
+
+    map_physical_memory(pml4_addr);
+
+    // Now, physical memory should be accessed in the physical memory map region
+    pml4 = physical_addr_to_table(pml4_addr);
 
     // Map ELF sections into kernel text region
     remap_elf_sections(pml4);
 
     printk("Loading new PML4...\n");
-    set_cr3((physical_addr_t)pml4);
+    set_cr3(pml4_addr);
 }
 
 void free_multiboot_sections() {

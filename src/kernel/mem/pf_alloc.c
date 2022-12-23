@@ -4,8 +4,13 @@
 #include "stdbool.h"
 #include "multiboot.h"
 #include "error.h"
+#include "page_table.h"
 
-// Returns true if the address is within the range
+struct option {
+    bool present;
+    physical_addr_t addr;
+};
+
 struct free_pool_node {
     struct free_pool_node *next;
 };
@@ -23,24 +28,38 @@ static inline uint64_t align_page(uint64_t addr) {
     return (addr + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 }
 
+// Returns true if the address is within the range
 static inline bool range_contains_addr(uint64_t addr, uint64_t start, uint64_t end) {
     return ((addr - start) < (end - start));
 }
 
-void push_free_pool_entry(struct free_pool_node *entry) {
+void push_free_pf(physical_addr_t pf) {
+    // Convert physical address to writeable virtual one
+    // Write a free pool node at the beginning of the page
+    struct free_pool_node *node = (struct free_pool_node *)GET_VIRT_ADDR(pf);
+    node->next = NULL;
+
     if (pf_info.free_pool == NULL) {
-        pf_info.free_pool = entry;
+        pf_info.free_pool = node;
     } else {
-        entry->next = pf_info.free_pool;
-        pf_info.free_pool = entry;
+        node->next = pf_info.free_pool;
+        pf_info.free_pool = node;
     }
 }
 
-struct free_pool_node *pop_free_pool_entry() {
-    struct free_pool_node *res;
-    if (pf_info.free_pool == NULL) return NULL;
-    res = pf_info.free_pool;
+struct option pop_free_pf() {
+    struct option res;
+
+    if (pf_info.free_pool == NULL) {
+        res.present = false;
+        return res;
+    }
+
+    res.addr = GET_PHYS_ADDR((virtual_addr_t)pf_info.free_pool);
+    res.present = true;
+
     pf_info.free_pool = pf_info.free_pool->next;
+
     return res;
 }
 
@@ -53,12 +72,13 @@ void MMU_init_pf_alloc() {
 // Allocates a physical page frame
 physical_addr_t MMU_pf_alloc(void) {
     physical_addr_t page;
-    struct free_pool_node *node;
+    struct option pf_option;
     bool page_valid;
 
     // Check the free pool linked list first
-    if ((node = pop_free_pool_entry()) != NULL) {
-        return (physical_addr_t)node;
+    pf_option = pop_free_pf();
+    if (pf_option.present) {
+        return pf_option.addr;
     }
 
     page_valid = false;
@@ -96,12 +116,6 @@ physical_addr_t MMU_pf_alloc(void) {
 // Returns a physical page frame to the free pool
 void MMU_pf_free(physical_addr_t pf) {
     pf &= ~(PAGE_SIZE - 1);
-    struct free_pool_node *entry;
 
-    // Write a free pool node at the beginning of the page
-    entry = (struct free_pool_node *)pf;
-    entry->next = NULL;
-
-    // Add free pool entry to the linked list
-    push_free_pool_entry(entry);
+    push_free_pf(pf);
 }

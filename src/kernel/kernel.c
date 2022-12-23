@@ -46,6 +46,9 @@ void kmain(struct multiboot_info *multiboot_tags) {
     // Map new virtual address space and switch to it
     setup_pml4();
 
+    // Set new VGA MMIO address
+    VGA_remap();
+
     // Cleanup old address space
     free_multiboot_sections();
 

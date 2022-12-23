@@ -1,4 +1,4 @@
-global start, gdt64, p4_table, p3_table_upper, p3_table_lower
+global start, gdt64, p4_table
 extern long_mode_start
 
 section .multiboot.gdt64    align=4

@@ -6,6 +6,12 @@
 #define PAGE_WRITABLE 0x2
 #define PAGE_NO_EXECUTE 0x8000000000000000
 #define PAGE_ALLOCATED 0x200
+#define PAGE_HUGE 0x80
+#define PML4_MMAP_INDEX 256
+#define HUGE_HUGE_PAGE_SIZE 4096 * 512 * 512
+
+#define GET_VIRT_ADDR(PHYS_ADDR) (PHYS_ADDR + KERNEL_MMAP_START)
+#define GET_PHYS_ADDR(VIRT_ADDR) (VIRT_ADDR - KERNEL_MMAP_START)
 
 void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags);
 int free_pf_from_virtual_addr(virtual_addr_t addr);
