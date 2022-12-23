@@ -72,48 +72,45 @@ void parse_elf_tag(struct multiboot_elf_tag *tag) {
     mmap.elf_tag = tag;
 }
 
-void append_free_mem_region(struct free_mem_region *entry) {
-    struct free_mem_region *current;
-
-    if (mmap.first_region == NULL) {
-        mmap.first_region = entry;
-    } else {
-        // Find end of linked list
-        current = mmap.first_region;
-        while (current->next) current = current->next;
-        current->next = entry;
-    }
-}
-
 void print_free_mem_regions() {
-    struct free_mem_region *current = mmap.first_region;
+    int i;
+    size_t size;
 
-    while (current) {
-        printk("Free memory start: 0x%lx, end: 0x%lx, len: %ld pages\n", 
-            current->start, current->end, (current->end - current->start) / PAGE_SIZE);
-        current = current->next;
+    for (i = 0; i < mmap.num_regions; i++) {
+        size = mmap.physical_regions[i].end - mmap.physical_regions[i].start;
+
+        printk("Physical memory start: 0x%lx, end: 0x%lx (%ld %s)\n", 
+            mmap.physical_regions[i].start, 
+            mmap.physical_regions[i].end, 
+            (size >= MB) ? size / MB : size / KB,
+            (size >= MB) ? "MB" : "KB");
     }
 }
 
 void parse_mmap_tag(struct multiboot_mmap_tag *tag) {
     struct multiboot_mmap_entry *entry;
-    struct free_mem_region *mod_entry;
     mmap.kernel.start = 0xFFFFFFFFFFFFFFFF;
     mmap.kernel.end = 0;
+    int i = 0;
 
     for (entry = (struct multiboot_mmap_entry *)(tag + 1);
         (uint8_t *)entry < (uint8_t *)tag + tag->size;
         entry++)
     {
-        if (entry->type == MMAP_ENTRY_FREE_TYPE) {            
-            // Manipulate entry to our advantage.
-            // Use memory to create a linked list of free memory regions
-            mod_entry = (struct free_mem_region *)entry;
-            mod_entry->end = entry->addr + entry->len;  // Change length to end address
-            mod_entry->next = NULL;  // This overwrites the multiboot type and zero fields
-            append_free_mem_region(mod_entry);
+        if (entry->type == MMAP_ENTRY_FREE_TYPE) {          
+            // Place entry in mmap region list
+            mmap.physical_regions[i].start = entry->addr;
+            mmap.physical_regions[i].end = entry->addr + entry->len;
+            i++;
+
+            if (i >= MAX_REGIONS) {
+                printk("parse_mmap_tag(): Num physical regions exceeds max (64)!\n");
+                break;
+            }
         }
     }
+
+    mmap.num_regions = i;
 }
 
 // Parses the multiboot tags and populates the mmap struct

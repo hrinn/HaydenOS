@@ -18,7 +18,7 @@ struct free_pool_node {
 typedef struct pf_info {
     struct free_pool_node *free_pool;
     physical_addr_t  current_page;
-    struct free_mem_region *current_region;
+    uint8_t physical_region_index;
 } pf_info_t;
 
 static pf_info_t pf_info;
@@ -64,9 +64,9 @@ struct option pop_free_pf() {
 }
 
 void MMU_init_pf_alloc() {
-    pf_info.current_page = align_page(mmap.first_region->start);
+    pf_info.current_page = align_page(mmap.physical_regions[0].start);
     pf_info.free_pool = NULL;
-    pf_info.current_region = mmap.first_region;
+    pf_info.physical_region_index = 0;
 }
 
 // Allocates a physical page frame
@@ -83,15 +83,18 @@ physical_addr_t MMU_pf_alloc(void) {
 
     page_valid = false;
     while (!page_valid) {
-        if (!range_contains_addr(pf_info.current_page, pf_info.current_region->start, pf_info.current_region->end)) {
+        if (!range_contains_addr(pf_info.current_page, 
+            mmap.physical_regions[pf_info.physical_region_index].start, 
+            mmap.physical_regions[pf_info.physical_region_index].end))
+        {
             // Page is outside of current memory region
-            if (pf_info.current_region->next == NULL) {
-                blue_screen("MMU_pf_alloc: No physical memory remaining");
+            if (pf_info.physical_region_index >= mmap.num_regions) {
+                blue_screen("MMU_pf_alloc(): No physical memory remaining!");
                 while (1) asm("hlt");
             }
             // Set current free entry to next
-            pf_info.current_region = pf_info.current_region->next;
-            pf_info.current_page = align_page(pf_info.current_region->start);
+            pf_info.physical_region_index++;
+            pf_info.current_page = align_page(mmap.physical_regions[pf_info.physical_region_index].start);
         } 
         
         if (range_contains_addr(pf_info.current_page, mmap.kernel.start, mmap.kernel.end)) {

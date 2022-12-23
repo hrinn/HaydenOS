@@ -7,6 +7,7 @@
 #include "printk.h"
 #include "registers.h"
 #include "irq.h"
+#include "vga.h"
 
 #define NUM_ENTRIES 512
 
@@ -166,8 +167,8 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
         return;
     }
 
-    printk("PAGE FAULT: Invalid memory access at %p\n", (void *)page);
-    printk("- %s\n", (error_code & 0x1) ? "Page protection violation" : "Not-present page");
+    printk("PAGE FAULT: Invalid memory access at 0x%lx\n", page);
+    printk("- %s\n", (error_code & 0x1) ? "Page protection violation" : "Page not present");
     printk("- %s\n", (error_code & 0x2) ? "Write" : "Read");
     printk("- %s\n", (error_code & 0x4) ? "User mode" : "Kernel mode");
     if (error_code & 0x08) printk("- Read reserved field in page table entry\n");
@@ -255,7 +256,6 @@ void map_physical_memory_huge_page(physical_addr_t addr, page_table_t *p3_mmap, 
 }
 
 void map_physical_memory(physical_addr_t pml4_addr) {
-    struct free_mem_region *last_region;
     page_table_t *new_pml4 = (page_table_t *)pml4_addr;
     physical_addr_t addr;
     int p3_index = 0;
@@ -264,14 +264,8 @@ void map_physical_memory(physical_addr_t pml4_addr) {
     physical_addr_t p3_mmap = MMU_pf_alloc();
     memset((void *)p3_mmap, 0, PAGE_SIZE);
 
-    // Find end address of physical memory;
-    last_region = mmap.first_region;
-    while (last_region->next != NULL) {
-        last_region = last_region->next;
-    }
-
     // Map huge pages to cover the memory regions
-    for (addr = 0; addr < last_region->end; addr += HUGE_HUGE_PAGE_SIZE) {
+    for (addr = 0; addr < mmap.physical_regions[mmap.num_regions - 1].end; addr += GB) {
         map_physical_memory_huge_page(addr, (page_table_t *)p3_mmap, p3_index++);
     }
 
@@ -307,8 +301,8 @@ void setup_pml4() {
     // Map physical memory into higher half of address space
     map_physical_memory(pml4_addr);
 
-    // Clear identity map out of current mapping
-    old_pml4->table[0].present = 0; // This write barely gets through
+    // Remap VGA so that prints work out of higher half 
+    VGA_remap();
 
     // Now, physical memory should be accessed in the physical memory map region
     pml4 = physical_addr_to_table(pml4_addr);
@@ -322,7 +316,19 @@ void setup_pml4() {
 
 void free_multiboot_sections() {
     struct elf_section_header *current;
-    physical_addr_t current_page;
+    physical_addr_t current_page, p3_temp_addr;
+    page_table_t *p3_temp;
+
+    // Temporarily map the bottom 1GB so that these accesses work
+    p3_temp_addr = allocate_table();
+    pml4->table[0].base_addr = p3_temp_addr >> PAGE_OFFSET;
+    pml4->table[0].present = 1;
+
+    p3_temp = entry_to_table(pml4, 0);
+    p3_temp->table[0].base_addr = 0;
+    p3_temp->table[0].present = 1;
+    p3_temp->table[0].huge = 1;
+    p3_temp->table[0].no_execute = 1;
 
     for (current = (struct elf_section_header *)(mmap.elf_tag + 1);
         (uint8_t *)current < (uint8_t *)mmap.elf_tag + mmap.elf_tag->size;
@@ -340,4 +346,8 @@ void free_multiboot_sections() {
             }
         }
     }
+
+    // Free temporarily mapped table
+    pml4->table[0].present = 0;
+    MMU_pf_free(p3_temp_addr);
 }

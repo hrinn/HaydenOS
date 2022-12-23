@@ -4,12 +4,6 @@
 #include "memdef.h"
 #include <stdint-gcc.h>
 
-struct free_mem_region {
-    physical_addr_t start;
-    physical_addr_t end;
-    struct free_mem_region *next;
-};
-
 struct multiboot_elf_tag {
     uint32_t type;
     uint32_t size;
@@ -31,11 +25,19 @@ struct elf_section_header {
     uint64_t fixed_entry_size;
 };
 
+#define MAX_REGIONS 64
+
+struct mem_region {
+    physical_addr_t start;
+    physical_addr_t end;
+};
+
 typedef struct mmap {
-    struct addr_range kernel;
-    struct addr_range multiboot;
-    struct free_mem_region *first_region;
-    struct multiboot_elf_tag *elf_tag;
+    struct mem_region kernel;
+    struct mem_region multiboot;
+    struct mem_region physical_regions[MAX_REGIONS];
+    uint8_t num_regions;
+    struct multiboot_elf_tag *elf_tag; // Should be moved
 } memory_map_t;
 
 struct multiboot_info {

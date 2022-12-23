@@ -18,9 +18,8 @@ typedef uint64_t size_t;
 #define PAGE_SIZE 4096
 #define STACK_SIZE PAGE_SIZE * 2
 
-struct addr_range {
-    uint64_t start;
-    uint64_t end;
-};
+#define KB 1024
+#define MB 1048576
+#define GB 1073741824
 
 #endif
