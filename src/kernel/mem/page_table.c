@@ -79,10 +79,6 @@ static inline page_table_t *entry_to_table(page_table_t *parent_table, int i) {
     return (page_table_t *)GET_VIRT_ADDR((parent_table->table[i].base_addr << PAGE_OFFSET));
 }
 
-static inline raw_pt_entry_t *get_raw_pt_entry(page_table_t *pt, int i) {
-    return (raw_pt_entry_t *)GET_VIRT_ADDR((pt->table[i].base_addr << PAGE_OFFSET));
-}
-
 // Takes a virtual address and maps it to a physical address in the PML4
 // Sets provided flags
 void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
@@ -116,7 +112,7 @@ void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flag
     }
     pt = entry_to_table(pd, i->pd_index);
 
-    pt_entry = get_raw_pt_entry(pt, i->pt_index);
+    pt_entry = (raw_pt_entry_t *)&pt->table[i->pt_index];
     *pt_entry = phys_addr | flags;
 }
 
@@ -268,17 +264,6 @@ void map_physical_memory(physical_addr_t pml4_addr) {
     physical_addr_t p3_mmap = MMU_pf_alloc();
     memset((void *)p3_mmap, 0, PAGE_SIZE);
 
-    // Place this table in the current pml4 and new pml4 at index 256
-    old_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
-    old_pml4->table[PML4_MMAP_INDEX].present = 1;
-    old_pml4->table[PML4_MMAP_INDEX].writable = 1;
-    old_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
-
-    new_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
-    new_pml4->table[PML4_MMAP_INDEX].present = 1;
-    new_pml4->table[PML4_MMAP_INDEX].writable = 1;
-    new_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
-
     // Find end address of physical memory;
     last_region = mmap.first_region;
     while (last_region->next != NULL) {
@@ -289,6 +274,17 @@ void map_physical_memory(physical_addr_t pml4_addr) {
     for (addr = 0; addr < last_region->end; addr += HUGE_HUGE_PAGE_SIZE) {
         map_physical_memory_huge_page(addr, (page_table_t *)p3_mmap, p3_index++);
     }
+
+    // Place this table in the current pml4 and new pml4 at index 256
+    old_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
+    old_pml4->table[PML4_MMAP_INDEX].present = 1;
+    old_pml4->table[PML4_MMAP_INDEX].writable = 1;
+    old_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
+
+    new_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
+    new_pml4->table[PML4_MMAP_INDEX].present = 1;
+    new_pml4->table[PML4_MMAP_INDEX].writable = 1;
+    new_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
 
     printk("Mapped %dGB of physical memory at 0x%lx\n", p3_index, KERNEL_MMAP_START);
 }
@@ -302,14 +298,17 @@ void setup_pml4() {
     // Enable no execute flag in EFER
     enable_no_execute();
 
-
     // Allocate a PML4
     // Currently, physical memory can be directly accessed because of the identity map
     physical_addr_t pml4_addr = MMU_pf_alloc();
     memset((void *)pml4_addr, 0, PAGE_SIZE);
     printk("Created PML4 at physical addr: 0x%lx\n", pml4_addr);
 
+    // Map physical memory into higher half of address space
     map_physical_memory(pml4_addr);
+
+    // Clear identity map out of current mapping
+    old_pml4->table[0].present = 0; // This write barely gets through
 
     // Now, physical memory should be accessed in the physical memory map region
     pml4 = physical_addr_to_table(pml4_addr);
