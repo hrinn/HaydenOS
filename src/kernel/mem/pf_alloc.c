@@ -73,7 +73,6 @@ void MMU_init_pf_alloc() {
 physical_addr_t MMU_pf_alloc(void) {
     physical_addr_t page;
     struct option pf_option;
-    bool page_valid;
 
     // Check the free pool linked list first
     pf_option = pop_free_pf();
@@ -81,34 +80,31 @@ physical_addr_t MMU_pf_alloc(void) {
         return pf_option.addr;
     }
 
-    page_valid = false;
-    while (!page_valid) {
-        if (!range_contains_addr(pf_info.current_page, 
+check_addr:
+    if (!range_contains_addr(pf_info.current_page, 
             mmap.physical_regions[pf_info.physical_region_index].start, 
             mmap.physical_regions[pf_info.physical_region_index].end))
-        {
-            // Page is outside of current memory region
-            if (pf_info.physical_region_index >= mmap.num_regions) {
-                blue_screen("MMU_pf_alloc(): No physical memory remaining!");
-                while (1) asm("hlt");
-            }
-            // Set current free entry to next
-            pf_info.physical_region_index++;
-            pf_info.current_page = align_page(mmap.physical_regions[pf_info.physical_region_index].start);
-        } 
-        
-        if (range_contains_addr(pf_info.current_page, mmap.kernel.start, mmap.kernel.end)) {
-            // Page is inside of kernel
-            pf_info.current_page = align_page(mmap.kernel.end);
-            continue; // Recheck address
+    {
+        // Page is outside of current memory region
+        if (pf_info.physical_region_index >= mmap.num_regions) {
+            blue_screen("MMU_pf_alloc(): No physical memory remaining!");
+            while (1) asm("hlt");
         }
-        
-        if (range_contains_addr(pf_info.current_page, mmap.multiboot.start, mmap.multiboot.end)) {
-            pf_info.current_page = align_page(mmap.multiboot.end);
-            continue; // Recheck address
-        }
+        // Set current free entry to next
+        pf_info.physical_region_index++;
+        pf_info.current_page = align_page(mmap.physical_regions[pf_info.physical_region_index].start);
+    } 
 
-        page_valid = true;
+    if (range_contains_addr(pf_info.current_page, mmap.multiboot.start, mmap.multiboot.end)) {
+        // Page is inside multiboot region
+        pf_info.current_page = align_page(mmap.multiboot.end);
+        goto check_addr; // Recheck address
+    }
+    
+    if (range_contains_addr(pf_info.current_page, mmap.kernel.start, mmap.kernel.end)) {
+        // Page is inside of kernel
+        pf_info.current_page = align_page(mmap.kernel.end);
+        goto check_addr; // Recheck address
     }
 
     page = pf_info.current_page;
