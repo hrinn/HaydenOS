@@ -132,10 +132,8 @@ void map_range(physical_addr_t pstart, virtual_addr_t vstart,
 }
 
 // Demand allocates a virtual address range for user access
-// Returns address of top of stack
-virtual_addr_t user_allocate_range(virtual_addr_t start, uint64_t size) {
+void user_allocate_range(virtual_addr_t start, uint64_t size) {
     map_range(0, start, size, PAGE_ALLOCATED | PAGE_USER_ACCESS | PAGE_WRITABLE);
-    return start + size;
 }
 
 // Returns the page frame associated with a virtual address if it is mapped in PML4
@@ -208,7 +206,7 @@ void remap_elf_sections() {
 
 // Maps an existing stack in the physical address space to the virtual space
 // Returns the address of the top of the stack
-virtual_addr_t map_stack(page_table_t *pml4, virtual_addr_t vbottom, physical_addr_t pbottom) {
+virtual_addr_t map_stack(virtual_addr_t vbottom, physical_addr_t pbottom) {
     virtual_addr_t vcurrent;
     physical_addr_t pcurrent = pbottom;
 

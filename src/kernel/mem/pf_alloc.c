@@ -87,8 +87,7 @@ check_addr:
     {
         // Page is outside of current memory region
         if (pf_info.physical_region_index >= mmap.num_regions) {
-            blue_screen("MMU_pf_alloc(): No physical memory remaining!");
-            while (1) asm("hlt");
+            panic("MMU_pf_alloc(): No physical memory remaining!");
         }
         // Set current free entry to next
         pf_info.physical_region_index++;

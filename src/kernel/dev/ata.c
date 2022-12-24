@@ -1,11 +1,10 @@
 #include "ata.h"
+#include <stddef.h>
 #include "ioport.h"
 #include "printk.h"
-#include "irq.h"
 #include "kmalloc.h"
 #include "memdef.h"
-#include <stddef.h>
-#include <stdbool.h>
+#include "error.h"
 
 // PIO Registers
 #define DATA_REG(base) base + 0         // R/W (16 bit)
@@ -26,6 +25,7 @@
 #define DEV_CTRL_NIEN 0x2
 #define STAT_DRQ (1 << 3)
 #define STAT_BSY (1 << 7)
+#define STAT_ERR 1
 
 // Values
 #define FLOATING_BUS 0xFF
@@ -36,129 +36,37 @@
 #define CMD_IDENTIFY 0xEC
 #define CMD_READ_SECTORS_EXT 0x24
 
-typedef struct ATA_sync {
-    ATA_request_t *req_head;
-    ATA_request_t *req_tail;
-    proc_queue_t blocked;
-} ATA_sync_t;
-
-static ATA_sync_t ATA_primary_sync;
-
-// Inserts ATA request at end of device's request queue
-void append_ATA_request(ATA_sync_t *sync, ATA_request_t *request) {
-    if (sync->req_head == NULL) {
-        sync->req_head = request;
-        sync->req_tail = request;
-    } else {
-        // Insert at end of list
-        sync->req_tail->next = request;
-        sync->req_tail = request;
-    }
-}
-
-// Fetches ATA request from beginning of device's request queue
-ATA_request_t *pop_ATA_request(ATA_sync_t *sync) {
-    ATA_request_t *result = sync->req_head;
-
-    if (result == NULL) return NULL;
-
-    if (result == sync->req_tail) {
-        sync->req_tail = NULL;
-        sync->req_head = NULL;
-    } else {
-        sync->req_head = sync->req_head->next;
-    }
-    
-    return result;
-}
-
-ATA_request_t *peek_ATA_request(ATA_sync_t *sync) {
-    return sync->req_head;
-}
-
-bool is_ATA_request_head(ATA_sync_t *sync, ATA_request_t *req) {
-    return sync->req_head == req;
-}
-
-bool is_ATA_request_queued(ATA_sync_t *sync, ATA_request_t *req) {
-    ATA_request_t *current = sync->req_head;
-
-    while (current != NULL) {
-        if (current == req) {
-            return true;
-        }
-        current = current->next;
-    }
-
-    return false;
-}
-
-bool is_unprocessed_ATA_request_queued(ATA_sync_t *sync) {
-    ATA_request_t *current = sync->req_head;
-
-    while (current != NULL) {
-        if (current->processed == false) {
-            return true;
-        }
-        current = current->next;
-    }
-
-    return false;
-}
-
-bool is_ATA_queue_empty(ATA_sync_t *sync) {
-    return sync->req_head == NULL;
-}
-
-int count_ATA_queue(ATA_sync_t *sync) {
-    int i = 0;
-    ATA_request_t *current = sync->req_head;
-    while (current) {
-        i++;
-        current = current->next;
-    }
-    return i;
-}
-
-void ATA_isr(uint8_t irq, uint32_t error_code, void *arg) {
-    ATA_sync_t *sync = (irq == PRIMARY_IRQ) ? &ATA_primary_sync : NULL;
-    ATA_request_t *request;
-    ATA_block_dev_t *ata_dev;
-    uint16_t *dst;
+void ATA_poll(uint16_t base) {
     int i;
+    uint8_t status;
 
-    if (sync != NULL && (request = pop_ATA_request(sync)) != NULL) {
-        ata_dev = request->dev;
-        dst = (uint16_t *)request->dst;
+    for (i = 0; i < 4; i++) inb(ALT_STAT_REG(base));
 
-        if (!request->processed) {
-            printk("ATA_isr(): Tried to handle unprocessed request!\n");
-        }
+retry:
+    status = inb(ALT_STAT_REG(base));
+    if (status & STAT_BSY) goto retry;
 
-        // Read 256 16 bit values from data port, into request's dst
-        for (i = 0; i < 256; i++) {
-            dst[i] = inw(DATA_REG(ata_dev->ata_base));
-        }
-
-        // Unblock head of ATA blocked queue
-        PROC_unblock_head(&sync->blocked);
+retry2:
+    status = inb(ALT_STAT_REG(base));
+    if (status & STAT_ERR) {
+        panic("ATA_poll(): Error status while polling!\n");
     }
 
-    // Read status register to clear interrupt flag
-    (irq == PRIMARY_IRQ) ? inb(STAT_REG(PRIMARY_BASE)) : inb(STAT_REG(SECONDARY_BASE));
-    IRQ_end_of_interrupt(irq);
+    if (!(status & STAT_DRQ)) goto retry2;
+
+    return;
 }
 
-void ATA_process_read_request(ATA_sync_t *sync) {
-    uint8_t *lba_n;
-    ATA_block_dev_t *ata_dev;
-    ATA_request_t *request;
-
-    // Get ATA device and LBA from request
-    request = peek_ATA_request(sync);
-    ata_dev = request->dev;
-    lba_n = (uint8_t *)&request->blk_num;
-    request->processed = true;
+int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
+    ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
+    uint16_t *block_dst = (uint16_t *)dst;
+    uint8_t *lba_n = (uint8_t *)&blk_num, status;
+    int i;
+    
+    if (blk_num >= dev->tot_len) {
+        printk("ATA_read_block(): Tried to read past end of drive\n");
+        return -1;
+    }
 
     // Select master / slave
     outb(DRIVE_HEAD_REG(ata_dev->ata_base), 0x40 | (ata_dev->slave << 4));
@@ -173,49 +81,23 @@ void ATA_process_read_request(ATA_sync_t *sync) {
     outb(CYL_LOW_REG(ata_dev->ata_base), lba_n[1]);
     outb(CYL_HIGH_REG(ata_dev->ata_base), lba_n[2]);
 
-    // Send read sectors command
+    // Send read command
     outb(CMD_REG(ata_dev->ata_base), CMD_READ_SECTORS_EXT);
-}
 
-int ATA_read_block(block_dev_t *dev, uint64_t blk_num, void *dst) {
-    ATA_block_dev_t *ata_dev = (ATA_block_dev_t *)dev;
-    ATA_sync_t *sync = (ata_dev->ata_base == PRIMARY_BASE) ? &ATA_primary_sync : NULL;
+    // Poll until data is ready
+    ATA_poll(ata_dev->ata_base);
 
-    if (sync == NULL) {
-        printk("ATA_read_block(): Unsupported read from secondary controller\n");
+    // Read 256 16 bit values from data port, into request's dst
+    for (i = 0; i < 256; i++) {
+        block_dst[i] = inw(DATA_REG(ata_dev->ata_base));
+    }
+
+    // Ensure status is good after handling read
+    status = inb(ALT_STAT_REG(ata_dev->ata_base));
+    if (status & STAT_BSY || status & STAT_DRQ || status & STAT_ERR) {
+        printk("ATA_read_block(): bad status: %x\n", status);
         return -1;
     }
-
-    if (blk_num >= dev->tot_len) {
-        printk("ATA_read_block(): Tried to read past end of drive\n");
-        return -1;
-    }
-
-    // Create an ATA request for the operation
-    ATA_request_t read_request;
-    read_request.dst = dst;
-    read_request.next = NULL;
-    read_request.dev = ata_dev;
-    read_request.blk_num = blk_num;
-    read_request.processed = false;
-
-    CLI;
-    if (is_ATA_queue_empty(sync)) {
-        // Begin request immediately
-        append_ATA_request(sync, &read_request);
-        ATA_process_read_request(sync);
-        wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
-    } else {
-        // Block now
-        append_ATA_request(sync, &read_request);
-        wait_event_interruptable(&sync->blocked, is_ATA_request_queued(sync, &read_request));
-    }
-
-    CLI;
-    if (is_unprocessed_ATA_request_queued(sync)) {
-        ATA_process_read_request(sync);
-    }
-    STI;
 
     return 1;
 }
@@ -229,6 +111,9 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     uint64_t sectors = 0;
     ATA_block_dev_t *ata_dev;
     int i;
+
+    // Turn off interrupts
+    outb(DEV_CTRL_REG(base), 0x2);
 
     // Floating bus detection
     status = inb(STAT_REG(base));
@@ -258,7 +143,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     // Drive exists, poll status port until bit 7 clears
     do {
         status = inb(STAT_REG(base));
-    } while ((status & 0x80) != 0);
+    } while ((status & STAT_BSY) != 0);
 
     // Check LBAmid and LBAhi to see if they are non zero
     // If so, the drive is not ATA
@@ -270,7 +155,7 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     // Continue polling status until bit 3 or bit 0 sets
     do {
         status = inb(STAT_REG(base));
-    } while ((status & 0x8) != 0 && (status & 0x1) != 0);
+    } while ((status & STAT_DRQ) != 0 && (status & STAT_ERR) != 0);
 
     // Check if ERR is clear
     if (inb(ERROR_REG(base)) != 0) {
@@ -309,18 +194,8 @@ ATA_block_dev_t *ATA_probe(uint16_t base, uint8_t slave, const char *name, uint8
     ata_dev->dev.name = name;
     ata_dev->dev.next = NULL;
 
-    // Initialize synchronization structure
-    PROC_init_queue(&ATA_primary_sync.blocked);
-
     // Register ATA device with block driver
     BLK_register(&ata_dev->dev);
-
-    // Register interrupt handler
-    IRQ_set_handler(irq, ATA_isr, NULL);
-    IRQ_clear_mask(irq);
-
-    // Set nIEN to 0 to receive interrupts
-    outb(DEV_CTRL_REG(base), 0);
 
     return ata_dev;
 }

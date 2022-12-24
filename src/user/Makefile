@@ -1,5 +1,3 @@
-CFLAGS += -fpic
-
 out_dir := ../../$(out_dir)
 obj_dir := ../../$(obj_dir)
 
