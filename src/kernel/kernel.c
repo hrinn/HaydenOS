@@ -101,12 +101,16 @@ void kmain_thread(void *arg) {
 
 void setup_userspace(inode_t *root, char *binary_path) {
     virtual_addr_t prog_start;
+    permission_t perms;
+    
     prog_start = ELF_mmap_binary(root, binary_path);
 
     if (prog_start == 0) return;
 
     // Setup userspace stack
-    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
+    perms.w = 1;
+    perms.x = 0;
+    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10, perms);
 
     // Setup user -> kernel stack
     TSS_set_rsp(MMU_alloc_stack(), 0);

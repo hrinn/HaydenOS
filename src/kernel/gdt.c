@@ -103,11 +103,14 @@ void GDT_remap() {
 
     // Setup user descriptors
     // Code descriptor
+    gdt.user_code_descriptor.limit_15_0 = 0xFFFF;
+    gdt.user_code_descriptor.limit_19_16 = 0xF;
     gdt.user_code_descriptor.one1 = 1;
     gdt.user_code_descriptor.one2 = 1;
     gdt.user_code_descriptor.dpl = USER_DPL;
     gdt.user_code_descriptor.present = 1;
     gdt.user_code_descriptor.l = 1;
+    gdt.user_code_descriptor.r = 1;
 
     // Stack descriptor
     gdt.user_data_descriptor.one = 1;
@@ -118,7 +121,7 @@ void GDT_remap() {
     gdt.user_data_descriptor.w = 1;
 
     // Load new GDT into GDT_R
-    lgdt(&gdt, GDT_LIMIT);
+    lgdt(&gdt, sizeof(gdt_t) - 1);
 }
 
 void TSS_init() {

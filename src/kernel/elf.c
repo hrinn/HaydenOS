@@ -54,6 +54,7 @@ virtual_addr_t ELF_mmap_binary(inode_t *root, char *path) {
     char *magic = "\177ELF";
     off_t cursor;
     int i;
+    permission_t perms;
 
     inode = FS_inode_for_path(path, root);
     file = inode->open(inode);
@@ -79,7 +80,9 @@ virtual_addr_t ELF_mmap_binary(inode_t *root, char *path) {
         file->read(file, (char *)&prog_header, header.prog_ent_size);
 
         // Allocate associated addresses in virtual space
-        user_allocate_range(prog_header.load_addr, prog_header.mem_size);
+        perms.x = 1;
+        perms.w = 1;
+        user_allocate_range(prog_header.load_addr, prog_header.mem_size, perms);
 
         // Read section into memory
         file->lseek(file, prog_header.file_offset);

@@ -20,8 +20,6 @@
 
 #define PAGE_FAULT_IRQ 14
 
-#define VGA_ADDR 0xB8000
-
 typedef struct page_table_entry {
     uint64_t present : 1;
     uint64_t writable : 1;
@@ -80,6 +78,17 @@ static inline page_table_t *entry_to_table(page_table_t *parent_table, int i) {
     return (page_table_t *)GET_VIRT_ADDR((parent_table->table[i].base_addr << PAGE_OFFSET));
 }
 
+page_table_t *get_or_alloc_table(page_table_t *parent, int i, uint64_t flags) {
+    if (!parent->table[i].present) {
+        parent->table[i].base_addr = allocate_table() >> PAGE_OFFSET;
+        parent->table[i].present = 1;
+        if (flags & PAGE_WRITABLE) parent->table[i].writable = 1;
+        if (flags & PAGE_USER_ACCESS) parent->table[i].user = 1;
+    }
+
+    return entry_to_table(parent, i);
+}
+
 // Takes a virtual address and maps it to a physical address in the PML4
 // Sets provided flags
 void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flags) {
@@ -88,32 +97,11 @@ void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flag
     page_table_t *pdp, *pd, *pt;
     raw_pt_entry_t *pt_entry;
 
-    if (!pml4->table[i->pml4_index].present) {
-        pml4->table[i->pml4_index].base_addr = allocate_table() >> PAGE_OFFSET;
-        pml4->table[i->pml4_index].present = 1;
-        if (flags & PAGE_WRITABLE) pml4->table[i->pml4_index].writable = 1;
-        if (flags & PAGE_USER_ACCESS) pml4->table[i->pml4_index].user = 1;
-    }
-    pdp = entry_to_table(pml4, i->pml4_index);
-
-    if (!pdp->table[i->pdp_index].present) {
-        pdp->table[i->pdp_index].base_addr = allocate_table() >> PAGE_OFFSET;
-        pdp->table[i->pdp_index].present = 1;
-        if (flags & PAGE_WRITABLE) pdp->table[i->pdp_index].writable = 1;
-        if (flags & PAGE_USER_ACCESS) pdp->table[i->pdp_index].user = 1;
-    }
-    pd = entry_to_table(pdp, i->pdp_index);
-
-
-    if (!pd->table[i->pd_index].present) {
-        pd->table[i->pd_index].base_addr = allocate_table() >> PAGE_OFFSET;
-        pd->table[i->pd_index].present = 1;
-        if (flags & PAGE_WRITABLE) pd->table[i->pd_index].writable = 1;
-        if (flags & PAGE_USER_ACCESS) pd->table[i->pd_index].user = 1;
-    }
-    pt = entry_to_table(pd, i->pd_index);
-
+    pdp = get_or_alloc_table(pml4, i->pml4_index, flags);
+    pd = get_or_alloc_table(pdp, i->pdp_index, flags);
+    pt = get_or_alloc_table(pd, i->pd_index, flags);
     pt_entry = (raw_pt_entry_t *)&pt->table[i->pt_index];
+    
     *pt_entry = phys_addr | flags;
 }
 
@@ -132,8 +120,15 @@ void map_range(physical_addr_t pstart, virtual_addr_t vstart,
 }
 
 // Demand allocates a virtual address range for user access
-void user_allocate_range(virtual_addr_t start, uint64_t size) {
-    map_range(0, start, size, PAGE_ALLOCATED | PAGE_USER_ACCESS | PAGE_WRITABLE);
+void user_allocate_range(virtual_addr_t start, size_t size, permission_t perms) {
+    uint64_t flags = 0;
+    flags |= PAGE_ALLOCATED;
+    flags |= PAGE_USER_ACCESS;
+
+    if (perms.w) flags |= PAGE_WRITABLE;
+    if (!perms.x) flags |= PAGE_NO_EXECUTE;
+
+    map_range(0, start, size, flags);
 }
 
 // Returns the page frame associated with a virtual address if it is mapped in PML4
@@ -165,12 +160,20 @@ void page_fault_handler(uint8_t irq, uint32_t error_code, void *arg) {
         return;
     }
 
-    printk("PAGE FAULT: Invalid memory access at 0x%lx\n", page);
+    printk("\nPAGE FAULT: Invalid memory access at 0x%lx\n", page);
     printk("- %s\n", (error_code & 0x1) ? "Page protection violation" : "Page not present");
     printk("- %s\n", (error_code & 0x2) ? "Write" : "Read");
     printk("- %s\n", (error_code & 0x4) ? "User mode" : "Kernel mode");
     if (error_code & 0x08) printk("- Read reserved field in page table entry\n");
     if (error_code & 0x10) printk("- Instruction fetch\n");
+
+    printk("\nPage table entry:\n");
+    printk("- physical address: 0x%lx\n",(uint64_t)(entry->base_addr << PAGE_OFFSET));
+    printk("- present: %d\n", entry->present);
+    printk("- writable: %d\n", entry->writable);
+    printk("- user: %d\n", entry->user);
+    printk("- allocated: %d\n", entry->allocated);
+    printk("- no_exec: %d\n", entry->no_execute);
 
     while (1) asm("hlt");
 }
