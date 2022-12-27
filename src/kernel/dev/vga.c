@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include "string.h"
 #include "irq.h"
+#include "memdef.h"
 
 #define VGA_ADDR 0xB8000
 #define VGA_WIDTH 80
@@ -14,6 +15,10 @@ static uint16_t cursor;
 static uint16_t *vga = (uint16_t *)VGA_ADDR;
 static uint8_t fg_color = VGA_WHITE;
 static uint8_t bg_color = VGA_BLACK;
+
+void VGA_remap() {
+    vga = (uint16_t *)(VGA_ADDR + KERNEL_MMAP_START);
+}
 
 void VGA_clear() {
     uint16_t int_en = check_int();

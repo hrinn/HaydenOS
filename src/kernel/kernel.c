@@ -28,8 +28,6 @@ void setup_userspace(inode_t *root, char *binary_path);
 extern void call_user(virtual_addr_t user_text, virtual_addr_t user_stack);
 
 void kmain(struct multiboot_info *multiboot_tags) {
-    virtual_addr_t stack_addresses[4];
-    
     // Remap GDT and initialize TSS
     GDT_remap();
     TSS_init();
@@ -42,15 +40,15 @@ void kmain(struct multiboot_info *multiboot_tags) {
     printk("\nExecuting in kmain\n");
 
     // Initialize memory management
+    // TODO: Store all needed information from multiboot tags in
+    //       the higher region of memory
     parse_multiboot_tags(multiboot_tags);
     MMU_init_pf_alloc();
-    setup_pml4(stack_addresses);
 
-    // TODO: Remap kernel and IST stacks
-    // TSS_remap(stack_addresses + 1, 3);
+    // Map new virtual address space and switch to it
+    setup_pml4();
 
-    // asm ( "movq %0, %%rsp" : : "r"(stack_addresses[0]));
-
+    // Cleanup old address space
     free_multiboot_sections();
 
     init_sys_calls();
@@ -103,12 +101,16 @@ void kmain_thread(void *arg) {
 
 void setup_userspace(inode_t *root, char *binary_path) {
     virtual_addr_t prog_start;
+    permission_t perms;
+    
     prog_start = ELF_mmap_binary(root, binary_path);
 
     if (prog_start == 0) return;
 
     // Setup userspace stack
-    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10);
+    perms.w = 1;
+    perms.x = 0;
+    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10, perms);
 
     // Setup user -> kernel stack
     TSS_set_rsp(MMU_alloc_stack(), 0);

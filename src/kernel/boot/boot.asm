@@ -1,4 +1,4 @@
-global start, gdt64, p4_table, p3_table_upper, p3_table_lower
+global start, gdt64, p4_table
 extern long_mode_start
 
 section .multiboot.gdt64    align=4
@@ -112,7 +112,7 @@ check_long_mode:
 setup_page_tables:
     ; Setup P4 table
     mov eax, p3_table_lower    ; map first P4 entry to lower P3 table
-    or eax, 0b11                                ; present + writable
+    or eax, 0b11               ; present + writable
     mov [p4_table], eax
 
     mov eax, p3_table_upper    ; map last P4 entry to upper P4 table

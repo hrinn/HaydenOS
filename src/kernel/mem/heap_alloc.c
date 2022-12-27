@@ -9,7 +9,7 @@ static virtual_addr_t kernel_brk = KERNEL_HEAP_START; // Next available page
 void *MMU_alloc_page() {
     virtual_addr_t address;
 
-    if (kernel_brk >= KERNEL_PSTACKS_START) {
+    if (kernel_brk >= KERNEL_STACKS_START) {
         printk("MMU_alloc_page: exhausted terabytes of kernel heap space!\n");
         return NULL;
     }
@@ -38,7 +38,7 @@ void *MMU_alloc_pages(int num) {
 void MMU_free_page(void *address) {
     virtual_addr_t vaddr = (virtual_addr_t)address;
 
-    if (vaddr < KERNEL_HEAP_START || vaddr >= KERNEL_PSTACKS_START) {
+    if (vaddr < KERNEL_HEAP_START || vaddr >= KERNEL_STACKS_START) {
         printk("MMU_free_page: tried to free an invalid address\n");
         return;
     }
