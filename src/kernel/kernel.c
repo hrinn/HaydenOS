@@ -110,11 +110,11 @@ void setup_userspace(inode_t *root, char *binary_path) {
     // Setup userspace stack
     perms.w = 1;
     perms.x = 0;
-    user_allocate_range(USER_STACK_START, PAGE_SIZE * 10, perms);
+    user_allocate_range(USER_STACK_START, PAGE_SIZE * 16, perms);
 
     // Setup user -> kernel stack
     TSS_set_rsp(MMU_alloc_stack(), 0);
 
     printk("Jumping to user space... (%p)\n", (void *)prog_start);
-    call_user(prog_start, USER_STACK_START + PAGE_SIZE * 10);
+    call_user(prog_start, USER_STACK_START + PAGE_SIZE * 16);
 }

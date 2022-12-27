@@ -97,6 +97,11 @@ void map_page(virtual_addr_t virt_addr, physical_addr_t phys_addr, uint64_t flag
     page_table_t *pdp, *pd, *pt;
     raw_pt_entry_t *pt_entry;
 
+    if (virt_addr == 0) {
+        printk("map_page(): Attempted to map NULL\n");
+        return;
+    }
+
     pdp = get_or_alloc_table(pml4, i->pml4_index, flags);
     pd = get_or_alloc_table(pdp, i->pdp_index, flags);
     pt = get_or_alloc_table(pd, i->pd_index, flags);

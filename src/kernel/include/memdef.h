@@ -8,8 +8,8 @@
 #define KERNEL_HEAP_START       0xffff808000000000  // PML4[257]
 #define KERNEL_MMAP_START       0xffff800000000000  // PML4[256]
 
-#define USER_TEXT_START     0x8000000000
-#define USER_STACK_START    0x7f8000000000
+#define USER_TEXT_START     0x400000
+#define USER_STACK_START    0x40000000
 
 typedef uint64_t virtual_addr_t;
 typedef uint64_t physical_addr_t;
