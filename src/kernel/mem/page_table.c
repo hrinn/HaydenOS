@@ -256,8 +256,7 @@ void map_physical_memory_huge_page(physical_addr_t addr, page_table_t *p3_mmap, 
     p3_mmap->table[p3_index].huge = 1;
 }
 
-void map_physical_memory(physical_addr_t pml4_addr) {
-    page_table_t *new_pml4 = (page_table_t *)pml4_addr;
+void map_physical_memory(page_table_t *physical_pml4) {
     physical_addr_t addr;
     int p3_index = 0;
 
@@ -276,17 +275,30 @@ void map_physical_memory(physical_addr_t pml4_addr) {
     old_pml4->table[PML4_MMAP_INDEX].writable = 1;
     old_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
 
-    new_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
-    new_pml4->table[PML4_MMAP_INDEX].present = 1;
-    new_pml4->table[PML4_MMAP_INDEX].writable = 1;
-    new_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
+    physical_pml4->table[PML4_MMAP_INDEX].base_addr = p3_mmap >> PAGE_OFFSET;
+    physical_pml4->table[PML4_MMAP_INDEX].present = 1;
+    physical_pml4->table[PML4_MMAP_INDEX].writable = 1;
+    physical_pml4->table[PML4_MMAP_INDEX].no_execute = 1;
 
     printk("Mapped %dGB of physical memory at 0x%lx\n", p3_index, KERNEL_MMAP_START);
+}
+
+void *memset_allow_null(void *dst, uint8_t c, size_t n) {
+    size_t i;
+    uint8_t *s = (uint8_t *)dst;
+
+    for (i = 0; i < n; i++) {
+        s[i] = c;
+    }
+
+    return dst;
 }
 
 // Sets up a new PML4 with physical memory map, kernel text, and kernel stack
 // Loads PML4 into CR3
 void setup_pml4() {
+    page_table_t *physical_pml4;
+
     // Register page fault handler
     IRQ_set_handler(PAGE_FAULT_IRQ, page_fault_handler, NULL);
 
@@ -295,24 +307,24 @@ void setup_pml4() {
 
     // Allocate a PML4
     // Currently, physical memory can be directly accessed because of the identity map
-    physical_addr_t pml4_addr = MMU_pf_alloc();
-    memset((void *)pml4_addr, 0, PAGE_SIZE);
-    printk("Created PML4 at physical addr: 0x%lx\n", pml4_addr);
+    physical_pml4 = (page_table_t *)MMU_pf_alloc();
+    memset_allow_null(physical_pml4, 0, PAGE_SIZE);
+    printk("Created PML4 at physical addr: %p\n", (void *)physical_pml4);
 
     // Map physical memory into higher half of address space
-    map_physical_memory(pml4_addr);
+    map_physical_memory(physical_pml4);
 
     // Remap VGA so that prints work out of higher half 
     VGA_remap();
 
     // Now, physical memory should be accessed in the physical memory map region
-    pml4 = physical_addr_to_table(pml4_addr);
+    pml4 = physical_addr_to_table((physical_addr_t)physical_pml4);
 
     // Map ELF sections into kernel text region
     remap_elf_sections(pml4);
 
     printk("Loading new PML4...\n");
-    set_cr3(pml4_addr);
+    set_cr3((physical_addr_t)physical_pml4);
 }
 
 void free_multiboot_sections() {

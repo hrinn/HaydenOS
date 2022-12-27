@@ -13,7 +13,6 @@
 
 typedef uint64_t virtual_addr_t;
 typedef uint64_t physical_addr_t;
-typedef uint64_t size_t;
 
 #define PAGE_SIZE 4096
 #define STACK_SIZE PAGE_SIZE * 2

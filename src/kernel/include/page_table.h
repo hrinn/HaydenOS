@@ -2,6 +2,7 @@
 #define PAGE_TABLE_H
 
 #include "memdef.h"
+#include <stddef.h>
 
 #define PAGE_WRITABLE 0x2
 #define PAGE_NO_EXECUTE 0x8000000000000000
