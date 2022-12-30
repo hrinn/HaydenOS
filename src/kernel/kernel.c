@@ -34,7 +34,9 @@ void kmain(struct multiboot_info *multiboot_tags) {
 
     // Enable interrupts and serial driver
     IRQ_init();
+    #ifdef SERIAL_OUT
     SER_init();
+    #endif
 
     VGA_clear();
     printk("\nExecuting in kmain\n");
