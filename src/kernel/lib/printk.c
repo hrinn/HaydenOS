@@ -90,7 +90,9 @@ static void uitoa(uint64_t num, char *buffer, int base, bool caps) {
 
 static inline void print(const char *buff, int len, bool block) {
     VGA_display_str(buff, len);
+    #ifdef SERIAL_OUT
     (block) ? SER_writeb(buff, len) : SER_write(buff, len);
+    #endif
 }
 
 static inline void print_uchar(unsigned char u, bool block) {

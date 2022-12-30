@@ -14,12 +14,15 @@ init := $(out_dir)/img/bin/init.bin
 
 all: bins
 
-gdb: CFLAGS += -g
-gdb: DEBUG_FLAGS := -s -S
-gdb: run
+gdb: CFLAGS += -g -DSERIAL_OUT
+gdb: QFLAGS := -s -S
+gdb: qemu
 
 release: CFLAGS += -Os
 release: bins
+
+qemu: CFLAGS += -DSERIAL_OUT
+qemu: run
 
 export CFLAGS
 
@@ -46,7 +49,7 @@ $(disk_img): bins tools/make_img.sh
 	@tools/make_img.sh
 
 run: $(disk_img)
-	qemu-system-x86_64 $(DEBUG_FLAGS) -drive format=raw,file=$(disk_img) -serial stdio
+	qemu-system-x86_64 -drive format=raw,file=$(disk_img) $(QFLAGS) -serial stdio
 
 clean:
 	@rm -r $(out_dir) $(obj_dir)
