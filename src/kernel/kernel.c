@@ -14,6 +14,7 @@
 #include "init_syscalls.h"
 #include "proc.h"
 
+#include "pci.h"
 #include "ata.h"
 #include "fat.h"
 #include "part.h"
@@ -70,6 +71,8 @@ void kmain_thread(void *arg) {
     superblock_t *superblock;
 
     printb("\nExecuting in kthread\n");
+
+    PCI_enumerate();
 
     // Probe for ATA drive on primary master bus
     if ((drive = ATA_probe(PRIMARY_BASE, 0, "sda", PRIMARY_IRQ)) == NULL) {
