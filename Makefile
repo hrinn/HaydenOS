@@ -6,7 +6,8 @@ CFLAGS := -ffreestanding -Wall -Werror -pedantic -I../include
 export out_dir := bin
 export obj_dir := obj
 
-disk_img := bin/HaydenOS.img
+img := bin/HaydenOS.img
+iso := bin/HaydenOS.iso
 kernel := $(out_dir)/img/boot/kernel.bin
 init := $(out_dir)/img/bin/init.bin
 
@@ -42,11 +43,16 @@ $(out_dir)/img: src/kernel/boot/grub.cfg
 
 bins: $(out_dir)/img $(kernel) $(init)
 
-$(disk_img): bins tools/make_img.sh
+$(img): bins tools/make_img.sh
 	@tools/make_img.sh
+	
+$(iso): bins
+	@grub-mkrescue -o $(iso) $(out_dir)/img 2> /dev/null
+	
+iso: $(iso)
 
-run: $(disk_img)
-	qemu-system-x86_64 $(DEBUG_FLAGS) -drive format=raw,file=$(disk_img) -serial stdio
+run: $(img)
+	qemu-system-x86_64 $(DEBUG_FLAGS) -drive format=raw,file=$(img) -serial stdio
 
 clean:
 	@rm -r $(out_dir) $(obj_dir)

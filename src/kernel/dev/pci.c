@@ -11,6 +11,8 @@
 #define CLASS_MASS_STORAGE 1
 #define SUBCLASS_IDE_CONTROLLER 1
 
+#define IDE_DMA_BIT 0x80
+
 struct PCI_header_common {
     uint16_t vendor, device;
     uint16_t cmd, status;
@@ -53,21 +55,17 @@ uint8_t get_header_type(uint8_t bus, uint8_t slot, uint8_t func) {
     return PCI_config_readw(bus, slot, func, 0xE) & 0xFF;
 }
 
-int PCI_read_config_space(uint8_t bus, uint8_t slot, uint8_t func, struct PCI_header_common *header) {
-    uint16_t *header_ptr = (uint16_t *)header;
-    uint8_t i;
+uint8_t get_prog_if(uint8_t bus, uint8_t slot, uint8_t func) {
+    return PCI_config_readw(bus, slot, func, 0x8) >> 8;
+}
 
-    header->vendor = get_vendor(bus, slot, func);
-
-    if (header->vendor == PCI_BAD_VENDOR) {
-        return -1;
+void PCI_IDE_initialize(uint8_t bus, uint8_t slot, uint8_t func) {
+    if (get_prog_if(bus, slot, func) & IDE_DMA_BIT) {
+        printb("IDE controller supports DMA\n");
+    } else {
+        printb("IDE controller does not support DMA, falling back to PIO\n");
     }
-
-    for (i = 1; i < sizeof(struct PCI_header_common); i += 2) {
-        *header_ptr++ = PCI_config_readw(bus, slot, func, i);
-    }
-
-    return 1;
+        
 }
 
 // Returns 1 if present, -1 if absent
@@ -85,6 +83,7 @@ int PCI_check_func(uint8_t bus, uint8_t slot, uint8_t func) {
 
     if (class == CLASS_MASS_STORAGE && subclass == SUBCLASS_IDE_CONTROLLER) {
         printb("Identified IDE Controller at PCI (%d, %d, %d)\n", bus, slot, func);
+        PCI_IDE_initialize(bus, slot, func);
     }
 
     return 1;
